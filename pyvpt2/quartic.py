@@ -3,7 +3,12 @@ import numpy as np
 import qcelemental as qcel
 
 
-def disp_energy(mol, disp, modes, disp_size=0.02, method='hf/sto-3g'):
+def disp_energy(mol, disp, harm, options):
+
+    modes = harm["modes_unitless"]
+    disp_size = options["DISP_SIZE"]
+    method = options["METHOD"]
+
     disp_geom = mol.geometry().np
     for i in disp:
         disp_geom += modes[:,i].reshape(-1,3) * disp_size * disp[i]
@@ -15,49 +20,28 @@ def disp_energy(mol, disp, modes, disp_size=0.02, method='hf/sto-3g'):
     E = psi4.energy(method, molecule = disp_mol)
     return E
 
-def force_field_E(mol, disp_size=0.02, method='hf/sto-3g'):
+def force_field_E(mol, harm, options):
 
-    # Get omegas and modes from harmonic analysis calc
-    E0, wfn = psi4.frequency(method, molecule = mol, return_wfn = True)
-
-    omega = wfn.frequency_analysis['omega'].data
-    modes = wfn.frequency_analysis['x'].data
-    kforce = wfn.frequency_analysis['k'].data
-    trv = wfn.frequency_analysis['TRV'].data
-    n_modes = len(trv)
-
+    n_modes = harm["n_modes"]
+    v_ind = harm["v_ind"]
+    disp_size = options["DISP_SIZE"]
+    E0 = harm["E0"]
     wave_to_hartree = qcel.constants.get("inverse meter-hartree relationship") * 100
-    meter_to_bohr = qcel.constants.get("Bohr radius")
-    joule_to_hartree = qcel.constants.get("hartree-joule relationship")
-    mdyneA_to_hartreebohr = 100 * (meter_to_bohr**2) / (joule_to_hartree)
-
-    omega = omega.real
-    omega_au = omega * wave_to_hartree
-    kforce_au = kforce * mdyneA_to_hartreebohr
-    modes_unitless = np.copy(modes)
-    v_ind = []
-
-    for i in range(n_modes):
-        if trv[i] == 'V' and omega[i] != 0.0:
-            modes_unitless[:,i] *= np.sqrt(omega_au[i]/kforce_au[i])
-            v_ind.append(i)
-        else:
-            modes_unitless[:,i] *= 0.0
-    
+   
     phi_ijk = np.zeros((n_modes,n_modes,n_modes))
     phi_iijj = np.zeros((n_modes,n_modes))
 
     for i in v_ind:
 
-        E3p = disp_energy(mol, {i:3}, modes_unitless, disp_size, method)
-        Ep = disp_energy(mol, {i:1}, modes_unitless, disp_size, method)
-        En = disp_energy(mol, {i:-1}, modes_unitless, disp_size, method)
-        E3n = disp_energy(mol, {i:-3}, modes_unitless, disp_size, method)
+        E3p = disp_energy(mol, {i:3}, harm, options)
+        Ep = disp_energy(mol, {i:1}, harm, options)
+        En = disp_energy(mol, {i:-1}, harm, options)
+        E3n = disp_energy(mol, {i:-3}, harm, options)
 
         phi_ijk[i,i,i] = ( E3p - 3*Ep + 3*En - E3n ) / (8 * disp_size**3)
 
-        E2p = disp_energy(mol, {i:2}, modes_unitless, disp_size, method)
-        E2n = disp_energy(mol, {i:-2}, modes_unitless, disp_size, method)
+        E2p = disp_energy(mol, {i:2}, harm, options)
+        E2n = disp_energy(mol, {i:-2}, harm, options)
 
         phi_iijj[i,i] = ( E2p - 4*Ep + 6*E0 - 4*En + E2n) / (disp_size**4)
         
@@ -67,15 +51,15 @@ def force_field_E(mol, disp_size=0.02, method='hf/sto-3g'):
 
             if i==j: continue
 
-            Epp = disp_energy(mol, {i:1, j:1}, modes_unitless, disp_size, method)
-            Epn = disp_energy(mol, {i:1, j:-1}, modes_unitless, disp_size, method)
-            Enp = disp_energy(mol, {i:-1, j:1}, modes_unitless, disp_size, method)
-            Enn = disp_energy(mol, {i:-1, j:-1}, modes_unitless, disp_size, method)
+            Epp = disp_energy(mol, {i:1, j:1}, harm, options)
+            Epn = disp_energy(mol, {i:1, j:-1}, harm, options)
+            Enp = disp_energy(mol, {i:-1, j:1}, harm, options)
+            Enn = disp_energy(mol, {i:-1, j:-1}, harm, options)
             
-            Eip = disp_energy(mol, {i:1}, modes_unitless, disp_size, method)
-            Ejp = disp_energy(mol, {j:1}, modes_unitless, disp_size, method)
-            Ein = disp_energy(mol, {i:-1}, modes_unitless, disp_size, method)
-            Ejn = disp_energy(mol, {j:-1}, modes_unitless, disp_size, method)
+            Eip = disp_energy(mol, {i:1}, harm, options)
+            Ejp = disp_energy(mol, {j:1}, harm, options)
+            Ein = disp_energy(mol, {i:-1}, harm, options)
+            Ejn = disp_energy(mol, {j:-1}, harm, options)
 
             phi_ijk[i,i,j] = ( Epp + Enp - 2*Ejp - Epn - Enn + 2*Ejn) / (2 * disp_size**3)
             phi_ijk[i,j,i] = phi_ijk[i,i,j]
@@ -91,14 +75,14 @@ def force_field_E(mol, disp_size=0.02, method='hf/sto-3g'):
                 elif i==k: continue
                 elif j==k: continue
 
-                Eppp = disp_energy(mol, {i:1, j:1, k:1}, modes_unitless, disp_size, method) 
-                Enpp = disp_energy(mol, {i:-1, j:1, k:1}, modes_unitless, disp_size, method) 
-                Epnp = disp_energy(mol, {i:1, j:-1, k:1}, modes_unitless, disp_size, method) 
-                Eppn = disp_energy(mol, {i:1, j:1, k:-1}, modes_unitless, disp_size, method) 
-                Epnn = disp_energy(mol, {i:1, j:-1, k:-1}, modes_unitless, disp_size, method) 
-                Ennp = disp_energy(mol, {i:-1, j:-1, k:1}, modes_unitless, disp_size, method) 
-                Enpn = disp_energy(mol, {i:-1, j:1, k:-1}, modes_unitless, disp_size, method) 
-                Ennn = disp_energy(mol, {i:-1, j:-1, k:-1}, modes_unitless, disp_size, method) 
+                Eppp = disp_energy(mol, {i:1, j:1, k:1}, harm, options) 
+                Enpp = disp_energy(mol, {i:-1, j:1, k:1}, harm, options) 
+                Epnp = disp_energy(mol, {i:1, j:-1, k:1}, harm, options) 
+                Eppn = disp_energy(mol, {i:1, j:1, k:-1}, harm, options) 
+                Epnn = disp_energy(mol, {i:1, j:-1, k:-1}, harm, options) 
+                Ennp = disp_energy(mol, {i:-1, j:-1, k:1}, harm, options) 
+                Enpn = disp_energy(mol, {i:-1, j:1, k:-1}, harm, options) 
+                Ennn = disp_energy(mol, {i:-1, j:-1, k:-1}, harm, options) 
 
                 phi_ijk[i,j,k] = ( Eppp - Enpp - Epnp - Eppn + Epnn + Ennp + Enpn - Ennn ) / (8 * disp_size**3)
                 phi_ijk[i,k,j] = phi_ijk[i,j,k]
