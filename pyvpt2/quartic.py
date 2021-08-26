@@ -20,6 +20,42 @@ def disp_energy(mol, disp, harm, options):
     E = psi4.energy(method, molecule = disp_mol)
     return E
 
+def disp_hess(mol, disp, harm, options):
+    disp_geom = mol.geometry().np
+    disp_size = options["DISP_SIZE"]
+    method = options["METHOD"]
+    modes_unitless = harm["modes_unitless"]
+    gamma = harm["gamma"]
+    q = harm["q"]
+
+    for i in disp:
+        disp_geom += modes_unitless[:,i].reshape(-1,3) * disp_size * disp[i]
+    
+    disp_mol = mol.clone()
+    disp_mol.set_geometry(psi4.core.Matrix.from_array(disp_geom))
+    disp_mol.reinterpret_coordentry(False)
+    disp_mol.update_geometry()
+
+    hess = psi4.hessian(method, molecule = disp_mol).np
+
+    atom_masses = np.empty(0)
+    n_atom = disp_mol.natom()
+    for i in range(n_atom):
+        atom_masses = np.append(atom_masses, disp_mol.mass(i))
+
+    ma_mb = np.outer(atom_masses, atom_masses)
+    ma_mb = 1 / np.sqrt(ma_mb)
+    ma_mb = np.repeat(ma_mb,3,axis=0)
+    ma_mb = np.repeat(ma_mb,3,axis=1)
+
+    hess_mw = np.einsum('ab,ab->ab', hess, ma_mb, optimize=True)
+
+    hessQ = np.matmul(np.transpose(q), np.matmul(hess_mw,q))
+
+    hessQ = np.einsum('ij,i,j->ij', hessQ, np.sqrt(gamma), np.sqrt(gamma), optimize=True)
+
+    return hessQ
+
 def force_field_E(mol, harm, options):
 
     n_modes = harm["n_modes"]
@@ -95,3 +131,42 @@ def force_field_E(mol, harm, options):
     phi_iijj /= wave_to_hartree 
 
     return phi_ijk, phi_iijj
+
+def force_field_H(mol, harm, options):
+    
+    n_modes = harm["n_modes"]
+    v_ind = harm["v_ind"]
+    disp_size = options["DISP_SIZE"]
+    wave_to_hartree = qcel.constants.get("inverse meter-hartree relationship") * 100
+   
+    phi_ijk = np.zeros((n_modes,n_modes,n_modes))
+    phi_iijj = np.zeros((n_modes,n_modes))
+    
+    hess0 = disp_hess(mol, {0: 0}, harm, options)
+
+    hess_p = np.zeros((n_modes,n_modes,n_modes))
+    hess_n = np.zeros((n_modes,n_modes,n_modes))
+
+    for i in v_ind:
+        
+        hess_p[i,:,:] = disp_hess(mol, {i: +1}, harm, options)
+        hess_n[i,:,:] = disp_hess(mol, {i: -1}, harm, options) 
+        
+        phi_iijj[i,i] = (hess_p[i,i,i]  + hess_n[i,i,i] - 2 * hess0[i,i]) / (disp_size**2)
+        phi_ijk[i,i,i] = (hess_p[i,i,i] - hess_n[i,i,i]) / (2 * disp_size)
+
+
+    for i in v_ind:
+        for j in v_ind:
+        
+            if (i != j):
+                phi_iijj[i,j] = (hess_p[j,i,i] + hess_n[j,i,i] + hess_p[i,j,j] + hess_n[i,j,j] - 2*hess0[i,i] - 2*hess0[j,j]) / (2 * disp_size**2)
+        
+            for k in v_ind:
+                if (k != i) or (k != j):
+                    phi_ijk[i,j,k] = (hess_p[i,j,k] - hess_n[i,j,k] + hess_p[j,k,i] - hess_n[j,k,i] + hess_p[k,i,j] - hess_n[k,i,j]) / (6 * disp_size)
+
+    phi_iijj = phi_iijj / wave_to_hartree
+    phi_ijk = phi_ijk / wave_to_hartree
+    
+    return phi_ijk, phi_iijj 

@@ -17,19 +17,23 @@ A = 100.026881300680799
 symmetry c1
 """)
 
-psi4.set_options({'scf_type': 'pk',
+psi4.set_options({'g_convergence': 'GAU_TIGHT',
                 'e_convergence': 1e-12,
                 'd_convergence': 1e-10,
-                'basis': '6-31g'})
+                'basis': 'aug-cc-pvtz'})
 
-E, wfn = psi4.optimize('hf', return_wfn=True)
+E, wfn = psi4.optimize('b3lyp', return_wfn=True)
 mol.update_geometry()
 
-options = {'METHOD': 'SCF',
-           'FD':'ENERGY',
-           'DISP_SIZE': 0.02}
-
-omega, anharmonic = vpt2(mol, options)
-
+E, wfn = psi4.frequencies('b3lyp', return_wfn=True)
+omega = wfn.frequency_analysis['omega'].data
 print(omega)
-print(anharmonic)                                                     
+
+options = {'METHOD': 'SCF',
+           'FD':'HESSIAN',
+           'DISP_SIZE': 0.005}
+
+#omega, anharmonic = vpt2(mol, options)
+
+#print(omega)
+#print(anharmonic)                                                     
