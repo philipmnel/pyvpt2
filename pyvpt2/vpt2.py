@@ -71,6 +71,22 @@ def vpt2(mol, options=None):
     elif(options['FD'] == 'HESSIAN'):
         phi_ijk, phi_iijj = quartic.force_field_H(mol, harm, options)
 
+    print("CUBIC:")
+
+    for i in v_ind:
+        for j in v_ind:
+            for k in v_ind:
+                if (abs(phi_ijk[i,j,k]) > 10 ):
+                    print(i+1,j+1,k+1,"    ",phi_ijk[i,j,k])
+
+    print("\n QUARTIC:")
+
+    for i in v_ind:
+        for j in v_ind:
+            if (abs(phi_iijj[i,j]) > 10 ):
+                print(i+1,i+1,j+1,j+1,"    ",phi_iijj[i,j])
+
+
     chi = np.zeros((n_modes, n_modes))
 
     for i in v_ind:
@@ -100,6 +116,11 @@ def vpt2(mol, options=None):
 
                 chi[i,j] /= 4
 
+    print("\n CHI:")
+    for i in v_ind:
+        for j in v_ind:
+            print(i+1,j+1,"    ",chi[i,j])
+
     anharmonic = np.zeros(n_modes)
     
     for i in v_ind:
@@ -109,5 +130,9 @@ def vpt2(mol, options=None):
         for j in v_ind:
             if j != i:
                 anharmonic[i] += 0.5 * chi[i,j]
+
+    print("\n FREQ (cm-1):")
+    for i in v_ind:
+        print(i+1,omega[i],anharmonic[i],sep="    ")
 
     return omega, anharmonic    

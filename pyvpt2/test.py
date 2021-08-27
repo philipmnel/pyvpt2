@@ -2,6 +2,9 @@ import psi4
 import numpy as np
 from vpt2 import vpt2
 
+psi4.set_memory('16gb')
+psi4.core.set_num_threads(6)
+
 mol = psi4.geometry("""
 nocom
 noreorient
@@ -20,20 +23,16 @@ symmetry c1
 psi4.set_options({'g_convergence': 'GAU_TIGHT',
                 'e_convergence': 1e-12,
                 'd_convergence': 1e-10,
-                'basis': 'aug-cc-pvtz'})
+                'basis': 'sto-3g'})
 
-E, wfn = psi4.optimize('b3lyp', return_wfn=True)
+E, wfn = psi4.optimize('hf', return_wfn=True)
 mol.update_geometry()
-
-E, wfn = psi4.frequencies('b3lyp', return_wfn=True)
-omega = wfn.frequency_analysis['omega'].data
-print(omega)
 
 options = {'METHOD': 'SCF',
            'FD':'HESSIAN',
            'DISP_SIZE': 0.005}
 
-#omega, anharmonic = vpt2(mol, options)
+omega, anharmonic = vpt2(mol, options)
 
 #print(omega)
 #print(anharmonic)                                                     
