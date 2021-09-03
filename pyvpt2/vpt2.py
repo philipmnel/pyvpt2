@@ -130,6 +130,13 @@ def vpt2(mol, options=None):
 
     chi0 /= 64
 
+    zpe = chi0
+    for i in v_ind:
+        zpe += (1/2) * (omega[i] + (1/2)*chi[i,i])
+        for j in v_ind:
+            if (j>i):
+                zpe += (1/4) * chi[i,j] 
+
     print("\n CHI:")
     for i in v_ind:
         for j in v_ind:
@@ -148,5 +155,8 @@ def vpt2(mol, options=None):
     print("\n FREQ (cm-1):")
     for i in v_ind:
         print(i+1,omega[i],anharmonic[i],sep="    ")
+
+    print("\n ZPE:")
+    print(zpe)
 
     return omega, anharmonic    
