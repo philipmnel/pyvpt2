@@ -88,11 +88,18 @@ def vpt2(mol, options=None):
 
 
     chi = np.zeros((n_modes, n_modes))
+    chi0 = 0.0
 
     for i in v_ind:
+
+        chi0 += phi_iijj[i,i]
+
+        chi0 -= (7/9) * phi_ijk[i,i,i]**2 / omega[i]
+
         for j in v_ind:
 
             if i==j:
+                
                 chi[i,i] = phi_iijj[i,i]
 
                 for k in v_ind:
@@ -102,19 +109,26 @@ def vpt2(mol, options=None):
                 chi[i,i] /= 16
 
             else:
+
+                chi0 += 3 * omega[i] * phi_ijk[i,j,j]**2 / (4 * omega[j]**2 - omega[i]**2)
+
                 chi[i,j] = phi_iijj[i,j]
 
                 for k in v_ind:
 
                     chi[i,j] -= (phi_ijk[i,i,k] * phi_ijk[j,j,k]) / omega[k]
 
-                for k in v_ind:
-
                     delta = (omega[i] + omega[j] - omega[k]) * (omega[i] + omega[j] + omega[k]) * (omega[i] - omega[j] + omega[k]) * (omega[i] - omega[j] - omega[k])
 
                     chi[i,j] += 2 * omega[k] * (omega[i]**2 + omega[j]**2 - omega[k]**2) * phi_ijk[i,j,k]**2 / delta
 
+                    if (j > i) and (k > j):
+                        
+                        chi0 -= 16 * ( omega[i] * omega[j] * omega[k] * phi_ijk[i,j,k]**2) / delta 
+
                 chi[i,j] /= 4
+
+    chi0 /= 64
 
     print("\n CHI:")
     for i in v_ind:
