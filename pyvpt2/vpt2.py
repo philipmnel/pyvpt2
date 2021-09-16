@@ -13,7 +13,6 @@ def harmonic(mol, options):
     modes = wfn.frequency_analysis['x'].data
     kforce = wfn.frequency_analysis['k'].data
     trv = wfn.frequency_analysis['TRV'].data
-    q = wfn.frequency_analysis['q'].data
     n_modes = len(trv)
 
     wave_to_hartree = qcel.constants.get("inverse meter-hartree relationship") * 100
@@ -43,7 +42,6 @@ def harmonic(mol, options):
     harm["n_modes"] = n_modes
     harm["modes_unitless"] = modes_unitless
     harm["gamma"] = gamma
-    harm["q"] = q
 
     return harm
 

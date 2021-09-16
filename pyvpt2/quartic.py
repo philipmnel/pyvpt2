@@ -26,7 +26,7 @@ def disp_hess(mol, disp, harm, options):
     method = options["METHOD"]
     modes_unitless = harm["modes_unitless"]
     gamma = harm["gamma"]
-    q = harm["q"]
+    q = harm["modes"]
 
     for i in disp:
         disp_geom += modes_unitless[:,i].reshape(-1,3) * disp_size * disp[i]
@@ -38,19 +38,7 @@ def disp_hess(mol, disp, harm, options):
 
     hess = psi4.hessian(method, molecule = disp_mol).np
 
-    atom_masses = np.empty(0)
-    n_atom = disp_mol.natom()
-    for i in range(n_atom):
-        atom_masses = np.append(atom_masses, disp_mol.mass(i))
-
-    ma_mb = np.outer(atom_masses, atom_masses)
-    ma_mb = 1 / np.sqrt(ma_mb)
-    ma_mb = np.repeat(ma_mb,3,axis=0)
-    ma_mb = np.repeat(ma_mb,3,axis=1)
-
-    hess_mw = np.einsum('ab,ab->ab', hess, ma_mb, optimize=True)
-
-    hessQ = np.matmul(np.transpose(q), np.matmul(hess_mw,q))
+    hessQ = np.matmul(np.transpose(q), np.matmul(hess,q))
 
     hessQ = np.einsum('ij,i,j->ij', hessQ, np.sqrt(gamma), np.sqrt(gamma), optimize=True)
 
