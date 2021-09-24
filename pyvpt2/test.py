@@ -20,19 +20,18 @@ A = 100.026881300680799
 symmetry c1
 """)
 
-psi4.set_options({'g_convergence': 'GAU_TIGHT',
+psi4.set_options({'g_convergence': 'GAU_VERYTIGHT',
+                'd_convergence': 1e-12,
                 'e_convergence': 1e-12,
-                'd_convergence': 1e-10,
-                'basis': 'sto-3g'})
+                'scf_type': 'direct',
+                'basis': '6-31g*',
+                'puream': True })
 
 E, wfn = psi4.optimize('hf', return_wfn=True)
 mol.update_geometry()
 
-options = {'METHOD': 'SCF',
+options = {'METHOD': 'HF',
            'FD':'HESSIAN',
-           'DISP_SIZE': 0.005}
+           'DISP_SIZE': 0.020}
 
 omega, anharmonic = vpt2(mol, options)
-
-#print(omega)
-#print(anharmonic)                                                     
