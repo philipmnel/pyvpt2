@@ -13,6 +13,7 @@ def harmonic(mol, options):
     modes = wfn.frequency_analysis['x'].data
     kforce = wfn.frequency_analysis['k'].data
     trv = wfn.frequency_analysis['TRV'].data
+    q = wfn.frequency_analysis['q'].data
     n_modes = len(trv)
 
     wave_to_hartree = qcel.constants.get("inverse meter-hartree relationship") * 100
@@ -42,8 +43,38 @@ def harmonic(mol, options):
     harm["n_modes"] = n_modes
     harm["modes_unitless"] = modes_unitless
     harm["gamma"] = gamma
+    harm["q"] = q
 
     return harm
+
+def coriolis(mol, harm):
+
+    q = harm["q"]
+    h = qcel.constants.get("Planck constant")
+    c = qcel.constants.get("speed of light in vacuum") * 100
+    meter_to_bohr = qcel.constants.get("Bohr radius")
+    kg_to_amu = qcel.constants.get("atomic mass constant")
+    n_atom = mol.natom()
+
+    inertia = mol.inertia_tensor().np
+    B = h / ( 8 * np.pi**2 * c * np.diag(inertia))
+    B /= kg_to_amu * meter_to_bohr**2
+
+    Mxa =  np.array([[0,0,0],[0,0,1],[0,-1,0]])
+    Mya =  np.array([[0,0,-1],[0,0,0],[1,0,0]])
+    Mza =  np.array([[0,1,0],[-1,0,0],[0,0,0]])
+
+    Mx = np.kron(np.eye(mol.natom()), Mxa)
+    My = np.kron(np.eye(mol.natom()), Mya)
+    Mz = np.kron(np.eye(mol.natom()), Mza)
+
+    zeta = np.zeros((3, 3*n_atom , 3*n_atom))
+    zeta[0,:,:] = np.matmul(np.transpose(q), np.matmul(Mx, q))
+    zeta[1,:,:] = np.matmul(np.transpose(q), np.matmul(My, q))
+    zeta[2,:,:] = np.matmul(np.transpose(q), np.matmul(Mz, q))
+
+    return zeta, B 
+
 
 def vpt2(mol, options=None):
 
@@ -85,6 +116,8 @@ def vpt2(mol, options=None):
                 print(i+1,i+1,j+1,j+1,"    ",phi_iijj[i,j])
 
 
+    zeta, B = coriolis(mol, harm)
+
     chi = np.zeros((n_modes, n_modes))
     chi0 = 0.0
 
@@ -111,6 +144,12 @@ def vpt2(mol, options=None):
                 chi0 += 3 * omega[i] * phi_ijk[i,j,j]**2 / (4 * omega[j]**2 - omega[i]**2)
 
                 chi[i,j] = phi_iijj[i,j]
+
+                rot = 0
+                for b_ind in range(0,3):
+                    rot += B[b_ind] * (zeta[b_ind,i,j])**2
+
+                chi[i,j] += 4 * (omega[i]**2 + omega[j]**2) / (omega[i] * omega[j]) * rot
 
                 for k in v_ind:
 
