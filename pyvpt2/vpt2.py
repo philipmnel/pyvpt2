@@ -95,9 +95,13 @@ def vpt2(mol, options=None):
     omega = harm["omega"]
     v_ind = harm["v_ind"]
 
+    zeta, B = coriolis(mol, harm)
+
     if (options['FD'] == 'ENERGY'):
         phi_ijk, phi_iijj = quartic.force_field_E(mol, harm, options)
-    elif(options['FD'] == 'HESSIAN'):
+    elif (options['FD'] == 'GRADIENT'):
+        phi_ijk, phi_iijj = quartic.force_field_G(mol, harm, options)
+    elif (options['FD'] == 'HESSIAN'):
         phi_ijk, phi_iijj = quartic.force_field_H(mol, harm, options)
 
     print("CUBIC:")
@@ -115,8 +119,13 @@ def vpt2(mol, options=None):
             if (abs(phi_iijj[i,j]) > 10 ):
                 print(i+1,i+1,j+1,j+1,"    ",phi_iijj[i,j])
 
+    print("\n CORIOLIS:")
 
-    zeta, B = coriolis(mol, harm)
+    for i in range(3):
+        for j in v_ind:
+            for k in v_ind:
+                if (abs(zeta[i,j,k]) > 1e-5):
+                    print(i+1, j+1, k+1, "    ", zeta[i,j,k] )
 
     chi = np.zeros((n_modes, n_modes))
     chi0 = 0.0
