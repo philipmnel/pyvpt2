@@ -136,11 +136,6 @@ def force_field_E(mol, harm, options):
                 Ennn = disp_energy(mol, {i:-1, j:-1, k:-1}, harm, options) 
 
                 phi_ijk[i,j,k] = ( Eppp - Enpp - Epnp - Eppn + Epnn + Ennp + Enpn - Ennn ) / (8 * disp_size**3)
-                phi_ijk[i,k,j] = phi_ijk[i,j,k]
-                phi_ijk[j,k,i] = phi_ijk[i,j,k]
-                phi_ijk[j,k,j] = phi_ijk[i,j,k]
-                phi_ijk[k,i,j] = phi_ijk[i,j,k]
-                phi_ijk[k,j,i] = phi_ijk[i,j,k]
 
     phi_ijk /= wave_to_hartree
     phi_iijj /= wave_to_hartree 
