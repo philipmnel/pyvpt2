@@ -1,7 +1,8 @@
 import psi4
 import numpy as np
-import quartic
 import qcelemental as qcel
+
+from . import quartic
 
 def harmonic(mol, options):
 
@@ -200,7 +201,7 @@ def vpt2(mol, options=None):
 
     print("\n FREQ (cm-1):")
     for i in v_ind:
-        print(i+1,omega[i],anharmonic[i],sep="    ")
+        print(i+1,omega[i],anharmonic[i], (omega[i] + anharmonic[i]),sep="    ")
 
     print("\n ZPE:")
     print(zpe)
