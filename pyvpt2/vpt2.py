@@ -2,7 +2,7 @@ import psi4
 import numpy as np
 import qcelemental as qcel
 
-from . import quartic
+import quartic
 
 def harmonic(mol, options):
 
