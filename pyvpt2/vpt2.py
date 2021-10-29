@@ -91,19 +91,48 @@ def vpt2(mol, options=None):
     if 'FD' not in options:
         options['FD'] = 'HESSIAN'
 
-    harm = harmonic(mol, options)
+    harm_options = options.copy()
+    if options['METHOD'] == 'CBS':
+        harm_options['METHOD'] = options['CORL_WFN'] + '/' + options['CORL_BASIS'] + ' + D:' + options['DELTA_WFN'] + '/' + options['DELTA_BASIS']
+
+    harm = harmonic(mol, harm_options)
     n_modes = harm["n_modes"]
     omega = harm["omega"]
     v_ind = harm["v_ind"]
 
     zeta, B = coriolis(mol, harm)
 
-    if (options['FD'] == 'ENERGY'):
-        phi_ijk, phi_iijj = quartic.force_field_E(mol, harm, options)
-    elif (options['FD'] == 'GRADIENT'):
-        phi_ijk, phi_iijj = quartic.force_field_G(mol, harm, options)
-    elif (options['FD'] == 'HESSIAN'):
-        phi_ijk, phi_iijj = quartic.force_field_H(mol, harm, options)
+    if (options['METHOD'] == 'CBS'):
+        corl_options = options.copy()
+        delta1_options = options.copy()
+        delta2_options = options.copy()
+        corl_options['METHOD'] = options['CORL_WFN'] + '/' + options['CORL_BASIS']
+        delta1_options['METHOD'] = options['DELTA_WFN'] + '/' + options['DELTA_BASIS']
+        delta2_options['METHOD'] = options['CORL_WFN'] + '/' + options['DELTA_BASIS']
+
+        if (options['FD'] == 'ENERGY'):
+            phi_ijk_corl, phi_iijj_corl = quartic.force_field_E(mol, harm, corl_options)
+            phi_ijk_d1, phi_iijj_d1 = quartic.force_field_E(mol, harm, delta1_options)
+            phi_ijk_d2, phi_iijj_d2 = quartic.force_field_E(mol, harm, delta2_options)
+        elif (options['FD'] == 'GRADIENT'):
+            phi_ijk_corl, phi_iijj_corl = quartic.force_field_G(mol, harm, corl_options)
+            phi_ijk_d1, phi_iijj_d1 = quartic.force_field_G(mol, harm, delta1_options)
+            phi_ijk_d2, phi_iijj_d2 = quartic.force_field_G(mol, harm, delta2_options)
+        elif (options['FD'] == 'HESSIAN'):
+            phi_ijk_corl, phi_iijj_corl = quartic.force_field_H(mol, harm, corl_options)
+            phi_ijk_d1, phi_iijj_d1 = quartic.force_field_H(mol, harm, delta1_options)
+            phi_ijk_d2, phi_iijj_d2 = quartic.force_field_H(mol, harm, delta2_options)
+
+        phi_ijk = phi_ijk_corl + phi_ijk_d1 - phi_ijk_d2
+        phi_iijj = phi_iijj_corl + phi_iijj_d1 - phi_iijj_d2
+
+    else: 
+        if (options['FD'] == 'ENERGY'):
+            phi_ijk, phi_iijj = quartic.force_field_E(mol, harm, options)
+        elif (options['FD'] == 'GRADIENT'):
+            phi_ijk, phi_iijj = quartic.force_field_G(mol, harm, options)
+        elif (options['FD'] == 'HESSIAN'):
+            phi_ijk, phi_iijj = quartic.force_field_H(mol, harm, options)
 
     print("CUBIC:")
 
