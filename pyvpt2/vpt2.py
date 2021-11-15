@@ -5,6 +5,14 @@ import qcelemental as qcel
 import quartic
 
 def harmonic(mol, options):
+    """
+    harmonic: performs harmonic analysis and parses normal modes
+
+    mol: psi4 molecule object
+    options: program options dictionary
+
+    harm: harmonic results dictionary
+    """
 
     method = options["METHOD"]
 
@@ -49,6 +57,15 @@ def harmonic(mol, options):
     return harm
 
 def coriolis(mol, harm):
+    """
+    coriolis: calculates coriolis coupling constants
+
+    mol: psi4 molecule object
+    harm: harmonic results dictionary
+
+    zeta: coriolis coupling constants
+    B: equilibrium rotational constants
+    """
 
     q = harm["q"]
     h = qcel.constants.get("Planck constant")
@@ -78,6 +95,15 @@ def coriolis(mol, harm):
 
 
 def vpt2(mol, options=None):
+    """
+    vpt2: performs vibrational pertubration theory calculation
+
+    mol: psi4 molecule object
+    options: program options dictionary
+
+    omega: harmonic frequencies
+    anharmonic: vpt2 anharmonic corrections
+    """
 
     if options is None:
         options = {}
@@ -172,7 +198,6 @@ def vpt2(mol, options=None):
                     if (j > i) and (k > j):
                         
                         chi0 -= 16 * ( omega[i] * omega[j] * omega[k] * phi_ijk[i,j,k]**2) / delta 
-
                 chi[i,j] /= 4
 
     chi0 /= 64
