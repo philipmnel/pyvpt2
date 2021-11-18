@@ -1,6 +1,7 @@
 import psi4
 import numpy as np
 import qcelemental as qcel
+import itertools
 
 wave_to_hartree = qcel.constants.get("inverse meter-hartree relationship") * 100
 
@@ -353,15 +354,21 @@ def force_field_H(mol, harm, options):
     phi_ijk = np.zeros((n_modes, n_modes, n_modes))
     phi_iijj = np.zeros((n_modes, n_modes))
 
+    disp_num = 1 + 2 * len(v_ind)
+    disp_counter = 1
+    print("{0} displacements needed: ".format(disp_num), end='')
+
     # REDUNDANT CALCULATION - REWRITE THIS
     hess0 = disp_hess(mol, {0: 0}, harm, options)
-
+    print(disp_counter, end=' '); disp_counter += 1
     hess_p = np.zeros((n_modes, n_modes, n_modes))
     hess_n = np.zeros((n_modes, n_modes, n_modes))
 
     for i in v_ind:
         hess_p[i, :, :] = disp_hess(mol, {i: +1}, harm, options)
+        print(disp_counter, end=' '); disp_counter += 1
         hess_n[i, :, :] = disp_hess(mol, {i: -1}, harm, options)
+        print(disp_counter, end=' '); disp_counter += 1
 
     for i in v_ind:
         phi_iijj[i, i] = (hess_p[i, i, i] + hess_n[i, i, i] - 2 * hess0[i, i]) / (
@@ -396,3 +403,25 @@ def force_field_H(mol, harm, options):
     phi_ijk = phi_ijk / wave_to_hartree
 
     return phi_ijk, phi_iijj
+
+def check_cubic(phi_ijk, harm):
+
+    v_ind = harm["v_ind"]
+
+    print("Checking for numerical inconsistencies in cubic terms...")
+    for unique_ijk in itertools.combinations_with_replacement(v_ind, 3):
+        for [ind1, ind2] in itertools.combinations(set(itertools.permutations(unique_ijk, 3)), 2):
+            diff = abs(phi_ijk[ind1] - phi_ijk[ind2])
+            if diff >= 1.0:
+                print(ind1, ind2, diff)
+
+def check_quartic(phi_iijj, harm):
+
+    v_ind = harm["v_ind"]
+    
+    print("Checking for numerical inconsistencies in quartic terms...")
+    for unique_ij in itertools.combinations_with_replacement(v_ind, 2):
+        for [ind1, ind2] in itertools.combinations(set(itertools.permutations(unique_ij, 2)), 2):
+            diff = abs(phi_iijj[ind1] - phi_iijj[ind2])
+            if diff >= 1.0:
+                print(ind1, ind2, diff)

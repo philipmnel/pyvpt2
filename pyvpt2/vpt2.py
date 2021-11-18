@@ -4,7 +4,6 @@ import qcelemental as qcel
 
 import quartic
 
-
 def harmonic(mol, options):
     """
     harmonic: performs harmonic analysis and parses normal modes
@@ -126,6 +125,8 @@ def vpt2(mol, options=None):
 
     zeta, B = coriolis(mol, harm)
 
+    print("Harmonic analysis successful. Starting quartic force field calculation.")
+
     if options["FD"] == "ENERGY":
         phi_ijk, phi_iijj = quartic.force_field_E(mol, harm, options)
     elif options["FD"] == "GRADIENT":
@@ -133,13 +134,15 @@ def vpt2(mol, options=None):
     elif options["FD"] == "HESSIAN":
         phi_ijk, phi_iijj = quartic.force_field_H(mol, harm, options)
 
-    print("CUBIC:")
+    print("\n CUBIC:")
 
     for i in v_ind:
         for j in v_ind:
             for k in v_ind:
                 if abs(phi_ijk[i, j, k]) > 10:
                     print(i + 1, j + 1, k + 1, "    ", phi_ijk[i, j, k])
+    
+    quartic.check_cubic(phi_ijk, harm)
 
     print("\n QUARTIC:")
 
@@ -147,6 +150,8 @@ def vpt2(mol, options=None):
         for j in v_ind:
             if abs(phi_iijj[i, j]) > 10:
                 print(i + 1, i + 1, j + 1, j + 1, "    ", phi_iijj[i, j])
+
+    quartic.check_quartic(phi_iijj, harm)
 
     print("\n CORIOLIS:")
 
