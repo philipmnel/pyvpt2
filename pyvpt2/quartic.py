@@ -3,6 +3,7 @@ import numpy as np
 import qcelemental as qcel
 import itertools
 import sys
+import math
 
 wave_to_hartree = qcel.constants.get("inverse meter-hartree relationship") * 100
 
@@ -132,7 +133,6 @@ def force_field_E(mol, harm, options):
     Epnn_matrix = np.zeros((n_modes, n_modes, n_modes))
 
     for i in v_ind:
-
         Eppp_matrix[i] = disp_energy(mol, {i: 3}, harm, options)
         Ennn_matrix[i] = disp_energy(mol, {i: -3}, harm, options)
         Epp_matrix[i, i] = disp_energy(mol, {i: 2}, harm, options)
@@ -140,53 +140,31 @@ def force_field_E(mol, harm, options):
         Ep_matrix[i] = disp_energy(mol, {i: 1}, harm, options)
         En_matrix[i] = disp_energy(mol, {i: -1}, harm, options)
 
-        for j in v_ind:
+    for [i, j] in itertools.combinations(v_ind, 2):
+        Epp_matrix[i, j] = disp_energy(mol, {i: 1, j: 1}, harm, options)
+        Enn_matrix[i, j] = disp_energy(mol, {i: -1, j: -1}, harm, options)
 
-            if j == i:
+        Epp_matrix[j, i] = Epp_matrix[i, j]
+        Enn_matrix[j, i] = Enn_matrix[i, j]
+
+        for k in v_ind:
+            if k == i or k == j: 
                 continue
+            Enpp_matrix[k, i, j] = disp_energy(mol, {k: -1, i: 1, j: 1}, harm, options)
+            Enpp_matrix[k, j, i] = Enpp_matrix[k, i, j]
+            Epnn_matrix[k, i, j] = disp_energy(mol, {k: 1, i: -1, j: -1}, harm, options)
+            Epnn_matrix[k, j, i] = Epnn_matrix[k, i, j]
+            
+    for [i, j] in itertools.permutations(v_ind, 2):
+        Epn_matrix[i, j] = disp_energy(mol, {i: 1, j: -1}, harm, options)
 
-            Epn_matrix[i, j] = disp_energy(mol, {i: 1, j: -1}, harm, options)
+    for [i, j, k] in itertools.combinations(v_ind, 3):
+        Ennn_matrix[i, j, k] = disp_energy(mol, {i: -1, j: -1, k: -1}, harm, options)
+        Eppp_matrix[i, j, k] = disp_energy(mol, {i: 1, j: 1, k: 1}, harm, options)
 
-            if j > i:
-                Epp_matrix[i, j] = disp_energy(mol, {i: 1, j: 1}, harm, options)
-                Enn_matrix[i, j] = disp_energy(mol, {i: -1, j: -1}, harm, options)
-
-                Epp_matrix[j, i] = Epp_matrix[i, j]
-                Enn_matrix[j, i] = Enn_matrix[i, j]
-
-    for i in v_ind:
-        for j in v_ind:
-
-            if j == i:
-                continue
-
-            for k in v_ind:
-                if k == j or k == i:
-                    continue
-
-                if k > j:
-                    Enpp_matrix[i, j, k] = disp_energy(mol, {i: -1, j: 1, k: 1}, harm, options)
-                    Epnn_matrix[i, j, k] = disp_energy(mol, {i: 1, j: -1, k: -1}, harm, options)
-
-                    Enpp_matrix[i, k, j] = Enpp_matrix[i, j, k]
-                    Epnn_matrix[i, k, j] = Epnn_matrix[i, j, k]
-
-                if k > j and j > i:
-
-                    Ennn_matrix[i, j, k] = disp_energy(mol, {i: -1, j: -1, k: -1}, harm, options)
-                    Eppp_matrix[i, j, k] = disp_energy(mol, {i: 1, j: 1, k: 1}, harm, options)
-
-                    Eppp_matrix[i, k, j] = Eppp_matrix[i, j, k]
-                    Eppp_matrix[j, k, i] = Eppp_matrix[i, j, k]
-                    Eppp_matrix[j, i, k] = Eppp_matrix[i, j, k]
-                    Eppp_matrix[k, i, j] = Eppp_matrix[i, j, k]
-                    Eppp_matrix[k, j, i] = Eppp_matrix[i, j, k]
-
-                    Ennn_matrix[i, k, j] = Ennn_matrix[i, j, k]
-                    Ennn_matrix[j, k, i] = Ennn_matrix[i, j, k]
-                    Ennn_matrix[j, i, k] = Ennn_matrix[i, j, k]
-                    Ennn_matrix[k, i, j] = Ennn_matrix[i, j, k]
-                    Ennn_matrix[k, j, i] = Ennn_matrix[i, j, k]
+        for perm_ijk in itertools.permutations([i, j, k], 3):
+            Ennn_matrix[perm_ijk] = Ennn_matrix[i,j,k]
+            Eppp_matrix[perm_ijk] = Eppp_matrix[i,j,k]
 
     for i in v_ind:
 
@@ -202,52 +180,38 @@ def force_field_E(mol, harm, options):
 
         phi_iijj[i, i] = (E2p - 4 * Ep + 6 * E0 - 4 * En + E2n) / (disp_size ** 4)
 
-    for i in v_ind:
-        for j in v_ind:
+    
+    for [i, j] in itertools.permutations(v_ind, 2):
+        Epp = Epp_matrix[i, j]
+        Epn = Epn_matrix[i, j]
+        Enp = Epn_matrix[j, i]
+        Enn = Enn_matrix[i, j]
 
-            if i == j:
-                continue
+        Eip = Ep_matrix[i]
+        Ejp = Ep_matrix[j]
+        Ein = En_matrix[i]
+        Ejn = En_matrix[j]
 
-            Epp = Epp_matrix[i, j]
-            Epn = Epn_matrix[i, j]
-            Enp = Epn_matrix[j, i]
-            Enn = Enn_matrix[i, j]
+        phi_ijk[i, i, j] = (Epp + Enp - 2 * Ejp - Epn - Enn + 2 * Ejn)
+        phi_ijk[i, i, j] /= 2 * disp_size ** 3
+        phi_ijk[i, j, i] = phi_ijk[i, i, j]
+        phi_ijk[j, i, i] = phi_ijk[i, i, j]
 
-            Eip = Ep_matrix[i]
-            Ejp = Ep_matrix[j]
-            Ein = En_matrix[i]
-            Ejn = En_matrix[j]
+        phi_iijj[i, j] = Epp + Enp + Epn + Enn - 2 * (Eip + Ejp + Ein + Ejn) + 4 * E0
+        phi_iijj[i, j] /= disp_size ** 4
 
-            phi_ijk[i, i, j] = (Epp + Enp - 2 * Ejp - Epn - Enn + 2 * Ejn) / (
-                2 * disp_size ** 3)
-            phi_ijk[i, j, i] = phi_ijk[i, i, j]
-            phi_ijk[j, i, i] = phi_ijk[i, i, j]
+    for [i, j, k] in itertools.permutations(v_ind, 3):
+        Eppp = Eppp_matrix[i, j, k]
+        Enpp = Enpp_matrix[i, j, k]
+        Epnp = Enpp_matrix[j, i, k]
+        Eppn = Enpp_matrix[k, i, j]
+        Epnn = Epnn_matrix[i, j, k]
+        Ennp = Epnn_matrix[k, i, j]
+        Enpn = Epnn_matrix[j, i, k]
+        Ennn = Ennn_matrix[i, j, k]
 
-            phi_iijj[i, j] = (Epp + Enp + Epn + Enn - 2 * (Eip + Ejp + Ein + Ejn) + 4 * E0
-            ) / (disp_size ** 4)
-
-    for i in v_ind:
-        for j in v_ind:
-            for k in v_ind:
-
-                if i == j:
-                    continue
-                elif i == k:
-                    continue
-                elif j == k:
-                    continue
-
-                Eppp = Eppp_matrix[i, j, k]
-                Enpp = Enpp_matrix[i, j, k]
-                Epnp = Enpp_matrix[j, i, k]
-                Eppn = Enpp_matrix[k, i, j]
-                Epnn = Epnn_matrix[i, j, k]
-                Ennp = Epnn_matrix[k, i, j]
-                Enpn = Epnn_matrix[j, i, k]
-                Ennn = Ennn_matrix[i, j, k]
-
-                phi_ijk[i, j, k] = (Eppp - Enpp - Epnp - Eppn + Epnn + Ennp + Enpn - Ennn
-                ) / (8 * disp_size ** 3)
+        phi_ijk[i, j, k] = Eppp - Enpp - Epnp - Eppn + Epnn + Ennp + Enpn - Ennn
+        phi_ijk[i, j, k] /= 8 * disp_size ** 3
 
     phi_ijk /= wave_to_hartree
     phi_iijj /= wave_to_hartree
@@ -274,7 +238,15 @@ def force_field_G(mol, harm, options):
     phi_ijk = np.zeros((n_modes, n_modes, n_modes))
     phi_iijj = np.zeros((n_modes, n_modes))
 
+    disp_num = 1 + 4 * len(v_ind) + 4 * math.comb(len(v_ind),2)
+    disp_counter = 1
+    print("{0} displacements needed: ".format(disp_num), end='')
+    sys.stdout.flush()
+
     grad0 = disp_grad(mol, {0: 0}, harm, options)
+    print(disp_counter, end=' ')
+    disp_counter += 1
+    sys.stdout.flush()
 
     grad_p = np.zeros((n_modes, n_modes))
     grad_n = np.zeros((n_modes, n_modes))
@@ -284,52 +256,76 @@ def force_field_G(mol, harm, options):
     grad_3n = np.zeros((n_modes, n_modes))
     grad_np = np.zeros((n_modes, n_modes, n_modes))
 
-    for i in v_ind:
+    for [i, j] in itertools.combinations_with_replacement(v_ind ,2):
+        if i == j:
+            grad_p[:, i] = disp_grad(mol, {i: +1}, harm, options)
+            print(disp_counter, end=' ')
+            disp_counter += 1
+            sys.stdout.flush()
+            grad_n[:, i] = disp_grad(mol, {i: -1}, harm, options)
+            print(disp_counter, end=' ')
+            disp_counter += 1
+            sys.stdout.flush()
+            grad_3p[:, i] = disp_grad(mol, {i: +3}, harm, options)
+            print(disp_counter, end=' ')
+            disp_counter += 1
+            sys.stdout.flush()
+            grad_3n[:, i] = disp_grad(mol, {i: -3}, harm, options)
+            print(disp_counter, end=' ')
+            disp_counter += 1
+            sys.stdout.flush()
 
-        grad_p[:, i] = disp_grad(mol, {i: +1}, harm, options)
-        grad_n[:, i] = disp_grad(mol, {i: -1}, harm, options)
-        grad_3p[:, i] = disp_grad(mol, {i: +3}, harm, options)
-        grad_3n[:, i] = disp_grad(mol, {i: -3}, harm, options)
+        else:
+            grad_pp[:, i, j] = disp_grad(mol, {i: +1, j: +1}, harm, options)
+            grad_pp[:, j, i] = grad_pp[:,i, j]
+            print(disp_counter, end=' ')
+            disp_counter += 1
+            sys.stdout.flush()
 
-        for j in v_ind:
-            if i == j:
-                continue
-
-            if j > i:
-                grad_pp[:, i, j] = disp_grad(mol, {i: +1, j: +1}, harm, options)
-                grad_nn[:, i, j] = disp_grad(mol, {i: -1, j: -1}, harm, options)
-
-            if j < i:
-                grad_pp[:, i, j] = grad_pp[:, j, i]
-                grad_nn[:, i, j] = grad_nn[:, j, i]
+            grad_nn[:, i, j] = disp_grad(mol, {i: -1, j: -1}, harm, options)
+            grad_nn[:, j, i] = grad_nn[:, i, j]
+            print(disp_counter, end=' ')
+            disp_counter += 1
+            sys.stdout.flush()
 
             grad_np[:, i, j] = disp_grad(mol, {i: -1, j: +1}, harm, options)
+            print(disp_counter, end=' ')
+            disp_counter += 1
+            sys.stdout.flush()
+
+            grad_np[:, j, i] = disp_grad(mol, {j: -1, i: +1}, harm, options)
+            print(disp_counter, end=' ')
+            disp_counter += 1
+            sys.stdout.flush()
 
     for i in v_ind:
 
-        phi_iijj[i, i] = (grad_3p[i, i] - 3 * grad_p[i, i] + 3 * grad_n[i, i] - grad_3n[i, i]
-        ) / (8 * disp_size ** 3)
-
         for j in v_ind:
-            phi_ijk[i, j, j] = (grad_p[i, j] + grad_n[i, j] - 2 * grad0[i]
-            ) / (disp_size ** 2)
+            phi_ijk[i, j, j] = grad_p[i, j] + grad_n[i, j] - 2 * grad0[i]
+            phi_ijk[i, j, j] /= disp_size ** 2
             phi_ijk[j, j, i] = phi_ijk[i, j, j]
             phi_ijk[j, i, j] = phi_ijk[i, j, j]
 
             if i == j:
                 continue
 
-            phi_iijj[i, j] = (grad_pp[i, i, j] + grad_np[i, j, i] - 2 * grad_p[i, i] 
-            - (grad_np[i, i, j] + grad_nn[i, i, j] - 2 * grad_n[i, i])
-            ) / (2 * disp_size ** 3)
-
             for k in v_ind:
                 if k == j or k == i:
                     continue
 
-                phi_ijk[i, j, k] = (grad_pp[i, j, k] + grad_nn[i, j, k] + 2 * grad0[i]
-                    - (grad_p[i, j] + grad_p[i, k] + grad_n[i, j] + grad_n[i, k])
-                ) / (2 * disp_size ** 2)
+                phi_ijk[i, j, k] = grad_pp[i, j, k] + grad_nn[i, j, k] + 2 * grad0[i]
+                phi_ijk[i, j, k] -= grad_p[i, j] + grad_p[i, k] + grad_n[i, j] + grad_n[i, k]
+                phi_ijk[i, j, k] /= 2 * disp_size ** 2
+
+    for [i, j] in itertools.product(v_ind, repeat=2):
+        if i == j:
+            phi_iijj[i, i] = grad_3p[i, i] - 3 * grad_p[i, i] + 3 * grad_n[i, i] - grad_3n[i, i]
+            phi_iijj[i, i] /= 8 * disp_size ** 3
+
+        else:
+            phi_iijj[i, j] = grad_pp[i, i, j] + grad_np[i, j, i] - 2 * grad_p[i, i] 
+            phi_iijj[i, j] -= grad_np[i, i, j] + grad_nn[i, i, j] - 2 * grad_n[i, i]
+            phi_iijj[i, j] /= 2 * disp_size ** 3
 
     phi_ijk = phi_ijk / wave_to_hartree
     phi_iijj = phi_iijj / wave_to_hartree
@@ -379,34 +375,25 @@ def force_field_H(mol, harm, options):
         disp_counter += 1
         sys.stdout.flush()
 
-    for i in v_ind:
-        phi_iijj[i, i] = (hess_p[i, i, i] + hess_n[i, i, i] - 2 * hess0[i, i]) / (
-            disp_size ** 2)
-        phi_ijk[i, i, i] = (hess_p[i, i, i] - hess_n[i, i, i]) / (2 * disp_size)
+    for [i,j,k] in itertools.product(v_ind, repeat=3):
+        if (i == j and j == k):
+            phi_ijk[i, i, i] = (hess_p[i, i, i] - hess_n[i, i, i]) / (2 * disp_size)
 
-        for j in v_ind:
-            for k in v_ind:
-                if (i == j) and (j == k):
-                    continue
-                phi_ijk[i, j, k] = (
-                      hess_p[i, j, k]
-                    - hess_n[i, j, k]
-                    + hess_p[j, k, i]
-                    - hess_n[j, k, i]
-                    + hess_p[k, i, j]
-                    - hess_n[k, i, j]
-                ) / (6 * disp_size)
+        else:
+            phi_ijk[i, j, k] = hess_p[i, j, k] - hess_n[i, j, k] + hess_p[j, k, i]
+            phi_ijk[i, j, k] += - hess_n[j, k, i] + hess_p[k, i, j] - hess_n[k, i, j]
+            phi_ijk[i, j, k] /= 6 * disp_size
 
-            if i == j:
-                continue
-            phi_iijj[i, j] = (
-                  hess_p[j, i, i]
-                + hess_n[j, i, i]
-                + hess_p[i, j, j]
-                + hess_n[i, j, j]
-                - 2 * hess0[i, i]
-                - 2 * hess0[j, j]
-            ) / (2 * disp_size ** 2)
+    for [i,j] in itertools.product(v_ind, repeat=2):
+        if i == j:
+            phi_iijj[i, i] = hess_p[i, i, i] + hess_n[i, i, i] - 2 * hess0[i, i]
+            phi_iijj[i, i] /= disp_size ** 2
+
+        else:
+            phi_iijj[i, j] = hess_p[j, i, i] + hess_n[j, i, i] + hess_p[i, j, j]
+            phi_iijj[i, j] += hess_n[i, j, j] - 2 * hess0[i, i] - 2 * hess0[j, j]
+            phi_iijj[i, j] /= 2 * disp_size ** 2
+
 
     phi_iijj = phi_iijj / wave_to_hartree
     phi_ijk = phi_ijk / wave_to_hartree
@@ -435,7 +422,7 @@ def check_quartic(phi_iijj, harm):
     v_ind = harm["v_ind"]
     
     no_inconsistency = True
-    
+
     print("Checking for numerical inconsistencies in quartic terms...")
     for unique_ij in itertools.combinations_with_replacement(v_ind, 2):
         for [ind1, ind2] in itertools.combinations(set(itertools.permutations(unique_ij, 2)), 2):

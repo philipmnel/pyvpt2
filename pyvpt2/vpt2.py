@@ -1,6 +1,7 @@
 import psi4
 import numpy as np
 import qcelemental as qcel
+import itertools
 
 import quartic
 
@@ -134,32 +135,24 @@ def vpt2(mol, options=None):
     elif options["FD"] == "HESSIAN":
         phi_ijk, phi_iijj = quartic.force_field_H(mol, harm, options)
 
-    print("\n CUBIC:")
+    print("\n\nCUBIC:")
+    for [i,j,k] in itertools.product(v_ind, repeat=3):
+        if abs(phi_ijk[i, j, k]) > 10:
+            print(i + 1, j + 1, k + 1, "    ", phi_ijk[i, j, k])
 
-    for i in v_ind:
-        for j in v_ind:
-            for k in v_ind:
-                if abs(phi_ijk[i, j, k]) > 10:
-                    print(i + 1, j + 1, k + 1, "    ", phi_ijk[i, j, k])
-    
     quartic.check_cubic(phi_ijk, harm)
 
-    print("\n QUARTIC:")
-
-    for i in v_ind:
-        for j in v_ind:
-            if abs(phi_iijj[i, j]) > 10:
-                print(i + 1, i + 1, j + 1, j + 1, "    ", phi_iijj[i, j])
+    print("\nQUARTIC:")
+    for [i,j] in itertools.product(v_ind, repeat=2):
+        if abs(phi_iijj[i, j]) > 10:
+            print(i + 1, i + 1, j + 1, j + 1, "    ", phi_iijj[i, j])
 
     quartic.check_quartic(phi_iijj, harm)
 
-    print("\n CORIOLIS:")
-
-    for i in range(3):
-        for j in v_ind:
-            for k in v_ind:
-                if abs(zeta[i, j, k]) > 1e-5:
-                    print(i + 1, j + 1, k + 1, "    ", zeta[i, j, k])
+    print("\nCORIOLIS:")
+    for [i,j,k] in itertools.product(range(3), v_ind, v_ind):
+        if abs(zeta[i, j, k]) > 1e-5:
+            print(i + 1, j + 1, k + 1, "    ", zeta[i, j, k])
 
     chi = np.zeros((n_modes, n_modes))
     chi0 = 0.0
@@ -167,7 +160,6 @@ def vpt2(mol, options=None):
     for i in v_ind:
 
         chi0 += phi_iijj[i, i]
-
         chi0 -= (7 / 9) * phi_ijk[i, i, i] ** 2 / omega[i]
 
         for j in v_ind:
@@ -178,15 +170,13 @@ def vpt2(mol, options=None):
 
                 for k in v_ind:
 
-                    chi[i, i] -= ((8 * omega[i] ** 2 - 3 * omega[k] ** 2) * phi_ijk[i, i, k] ** 2
-                    ) / (omega[k] * (4 * omega[i] ** 2 - omega[k] ** 2))
+                    chi[i, i] -= ((8 * omega[i] ** 2 - 3 * omega[k] ** 2) * phi_ijk[i, i, k] ** 2) / (omega[k] * (4 * omega[i] ** 2 - omega[k] ** 2))
 
                 chi[i, i] /= 16
 
             else:
 
-                chi0 += (3 * omega[i]* phi_ijk[i, j, j] ** 2
-                    / (4 * omega[j] ** 2 - omega[i] ** 2))
+                chi0 += 3 * omega[i]* phi_ijk[i, j, j] ** 2 / (4 * omega[j] ** 2 - omega[i] ** 2)
 
                 chi[i, j] = phi_iijj[i, j]
 
@@ -200,18 +190,16 @@ def vpt2(mol, options=None):
 
                     chi[i, j] -= (phi_ijk[i, i, k] * phi_ijk[j, j, k]) / omega[k]
 
-                    delta = ((omega[i] + omega[j] - omega[k])
-                        * (omega[i] + omega[j] + omega[k])
-                        * (omega[i] - omega[j] + omega[k])
-                        * (omega[i] - omega[j] - omega[k]))
+                    delta = omega[i] + omega[j] - omega[k]
+                    delta *= omega[i] + omega[j] + omega[k]
+                    delta *= omega[i] - omega[j] + omega[k]
+                    delta *= omega[i] - omega[j] - omega[k]
 
-                    chi[i, j] += (2 * omega[k] * (omega[i] ** 2 + omega[j] ** 2 - omega[k] ** 2)
-                        * phi_ijk[i, j, k] ** 2 / delta)
+                    chi[i, j] += 2 * omega[k] * (omega[i] ** 2 + omega[j] ** 2 - omega[k] ** 2) * phi_ijk[i, j, k] ** 2 / delta
 
                     if (j > i) and (k > j):
+                        chi0 -=  16 * (omega[i] * omega[j] * omega[k] * phi_ijk[i, j, k] ** 2) / delta
 
-                        chi0 -= ( 16 * (omega[i] * omega[j] * omega[k] * phi_ijk[i, j, k] ** 2)
-                            / delta)
                 chi[i, j] /= 4
 
     chi0 /= 64
