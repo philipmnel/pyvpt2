@@ -156,7 +156,7 @@ def vpt2(mol, options=None):
             print(i + 1, j + 1, k + 1, "    ", zeta[i, j, k])
 
     # Identify Fermi resonances:
-
+    print("\n Identifying Fermi resonances... ")
     fermi1 = np.zeros((n_modes, n_modes), dtype=bool)
     fermi2 = np.zeros((n_modes, n_modes, n_modes), dtype=bool)
     delta_omega_threshold = 100
@@ -168,12 +168,14 @@ def vpt2(mol, options=None):
             if phi_ijk[i,i,j]**4 / (256*(2*omega[i] - omega[j])**3) <= delta_K_threshold:
                 fermi1[i,j] = True
                 fermi1[j,i] = True
+                print("Detected 2(" + i + ") = " + j)
 
     for [i, j, k] in itertools.combinations(v_ind,3):
         if abs(omega[i] + omega[j] - omega[k]) <= delta_omega_threshold:
             if phi_ijk[i,j,k]**4 / (64* (omega[i] + omega[j] - omega[k])**3) <= delta_K_threshold:
                 for [ii,jj,kk] in itertools.permutations([i,j,k]):
                     fermi2[ii,jj,kk] = True
+                    print("Detected " + i + " + " + j + " = " + k)
 
 
     chi = np.zeros((n_modes, n_modes))
