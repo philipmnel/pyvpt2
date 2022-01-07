@@ -411,7 +411,7 @@ def check_cubic(phi_ijk, harm):
         for [ind1, ind2] in itertools.combinations(set(itertools.permutations(unique_ijk, 3)), 2):
             diff = abs(phi_ijk[ind1] - phi_ijk[ind2])
             if diff >= 1.0:
-                print(ind1, ind2, diff)
+                print(ind1+1, ind2+1, diff)
                 no_inconsistency = False
 
     if no_inconsistency:
@@ -428,7 +428,7 @@ def check_quartic(phi_iijj, harm):
         for [ind1, ind2] in itertools.combinations(set(itertools.permutations(unique_ij, 2)), 2):
             diff = abs(phi_iijj[ind1] - phi_iijj[ind2])
             if diff >= 1.0:
-                print(ind1, ind2, diff)
+                print(ind1+1, ind2+1, diff)
                 no_inconsistency = False
 
     if no_inconsistency:
