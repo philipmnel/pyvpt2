@@ -1,6 +1,6 @@
 import psi4
 import numpy as np
-from vpt2 import vpt2
+from pyvpt2 import vpt2
 
 psi4.set_memory('16gb')
 psi4.core.set_num_threads(6)
@@ -13,9 +13,9 @@ O
 H 1 R1
 H 1 R2 2 A
 
-R1 = 0.989409296024027
-R2 = 0.989409296024027
-A = 100.026881300680799
+R1 = 0.94731025924472878064
+R2 = 0.94731025924472878064
+A = 105.50289
 
 symmetry c1
 """)
@@ -27,11 +27,8 @@ psi4.set_options({'g_convergence': 'GAU_VERYTIGHT',
                 'basis': '6-31g*',
                 'puream': True })
 
-E, wfn = psi4.optimize('hf', return_wfn=True)
-mol.update_geometry()
-
-options = {'METHOD': 'HF',
+options = {'METHOD': 'HF/6-31g*',
            'FD':'HESSIAN',
-           'DISP_SIZE': 0.020}
+           'DISP_SIZE': 0.1}
 
 omega, anharmonic = vpt2(mol, options)

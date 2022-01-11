@@ -238,6 +238,12 @@ def vpt2(mol, options=None):
 
                 chi[i, j] /= 4
 
+    for b_ind in range(0,3):
+        zeta_sum = 0
+        for [i,j] in list(itertools.combinations(v_ind,2)):
+            zeta_sum += (zeta[b_ind, i, j])**2
+        chi0 -= 16 * B[b_ind] * (1 + 2*zeta_sum)
+
     chi0 /= 64
 
     zpe = chi0
