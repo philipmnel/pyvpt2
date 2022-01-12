@@ -172,7 +172,7 @@ def vpt2(mol, options=None):
         for [i, j] in itertools.permutations(v_ind, 2):
             d_omega = abs(2*omega[i] - omega[j])
             if d_omega <=  delta_omega_threshold:
-                d_K = phi_ijk[i,i,j]**4 / (256*(2*omega[i] - omega[j])**3)
+                d_K = phi_ijk[i,i,j]**4 / (256*d_omega**3)
                 if d_K <= delta_K_threshold:
                     fermi1[i,j] = True
                     print("Detected 2(" + str(i+1) + ") = " + str(j+1) + ", d_omega = " + str(d_omega) + ", d_K = " + str(d_K))
@@ -180,7 +180,7 @@ def vpt2(mol, options=None):
         for [i, j, k] in itertools.permutations(v_ind,3):
             d_omega = abs(omega[i] + omega[j] - omega[k])
             if d_omega <= delta_omega_threshold:
-                d_K = phi_ijk[i,j,k]**4 / (64* (omega[i] + omega[j] - omega[k])**3)
+                d_K = phi_ijk[i,j,k]**4 / (64* d_omega**3)
                 if d_K <= delta_K_threshold:
                     print("Detected " + str(i+1) + " + " + str(j+1) + " = " + str(k+1) + ", d_omega = " + str(d_omega) + ", d_K = " + str(d_K))
                     fermi2[i,j,k] = True
