@@ -169,19 +169,19 @@ def vpt2(mol, options=None):
     delta_K_threshold = options["FERMI_K_THRESH"]
 
     if options["FERMI"]:
-        for [i, j] in itertools.combinations(v_ind, 2):
-            if abs(2 * omega[i] - omega[j]) <=  delta_omega_threshold:
-                if phi_ijk[i,i,j]**4 / (256*(2*omega[i] - omega[j])**3) <= delta_K_threshold:
+        for [i, j] in itertools.permutations(v_ind, 2):
+            d_omega = abs(2*omega[i] - omega[j])
+            if d_omega <=  delta_omega_threshold:
+                d_K = phi_ijk[i,i,j]**4 / (256*(2*omega[i] - omega[j])**3)
+                if d_K <= delta_K_threshold:
                     fermi1[i,j] = True
-                    fermi1[j,i] = True
-                    print("Detected 2(" + str(i+1) + ") = " + str(j+1))
+                    print("Detected 2(" + str(i+1) + ") = " + str(j+1) + ", d_omega = " + str(d_omega) + ", d_K = " + str(d_K))
 
-        for [i, j, k] in itertools.combinations(v_ind,3):
+        for [i, j, k] in itertools.permutations(v_ind,3):
             if abs(omega[i] + omega[j] - omega[k]) <= delta_omega_threshold:
                 if phi_ijk[i,j,k]**4 / (64* (omega[i] + omega[j] - omega[k])**3) <= delta_K_threshold:
-                    print("Detected " + str(i+1) + " + " + str(j+1) + " = " + str(k+1))
-                    for [ii,jj,kk] in itertools.permutations([i,j,k]):
-                        fermi2[ii,jj,kk] = True
+                    print("Detected " + str(i+1) + " + " + str(j+1) + " = " + str(k+1) + ", d_omega = " + str(d_omega) + ", d_K = " + str(d_K))
+                    fermi2[i,j,k] = True
 
 
     chi = np.zeros((n_modes, n_modes))
