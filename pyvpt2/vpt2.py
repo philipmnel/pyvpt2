@@ -119,6 +119,12 @@ def vpt2(mol, options=None):
         options["METHOD"] = "SCF"
     if "FD" not in options:
         options["FD"] = "HESSIAN"
+    if "FERMI" not in options:
+        options["FERMI"] = True
+    if "FERMI_OMEGA_THRESH" not in options:
+        options["FERMI_OMEGA_THRESH"] = 100
+    if "FERMI_K_THRESH" not in options:
+        options["FERMI_K_THRESH"] = 10
 
     harm = harmonic(mol, options)
     n_modes = harm["n_modes"]
@@ -159,23 +165,23 @@ def vpt2(mol, options=None):
     print("\nIdentifying Fermi resonances... ")
     fermi1 = np.zeros((n_modes, n_modes), dtype=bool)
     fermi2 = np.zeros((n_modes, n_modes, n_modes), dtype=bool)
-    delta_omega_threshold = 100
-    delta_K_threshold = 10
+    delta_omega_threshold = options["FERMI_OMEGA_THRESH"]
+    delta_K_threshold = options["FERMI_K_THRESH"]
 
+    if options["FERMI"]:
+        for [i, j] in itertools.combinations(v_ind, 2):
+            if abs(2 * omega[i] - omega[j]) <=  delta_omega_threshold:
+                if phi_ijk[i,i,j]**4 / (256*(2*omega[i] - omega[j])**3) <= delta_K_threshold:
+                    fermi1[i,j] = True
+                    fermi1[j,i] = True
+                    print("Detected 2(" + str(i+1) + ") = " + str(j+1))
 
-    for [i, j] in itertools.combinations(v_ind, 2):
-        if abs(2 * omega[i] - omega[j]) <=  delta_omega_threshold:
-            if phi_ijk[i,i,j]**4 / (256*(2*omega[i] - omega[j])**3) <= delta_K_threshold:
-                fermi1[i,j] = True
-                fermi1[j,i] = True
-                print("Detected 2(" + str(i+1) + ") = " + str(j+1))
-
-    for [i, j, k] in itertools.combinations(v_ind,3):
-        if abs(omega[i] + omega[j] - omega[k]) <= delta_omega_threshold:
-            if phi_ijk[i,j,k]**4 / (64* (omega[i] + omega[j] - omega[k])**3) <= delta_K_threshold:
-                for [ii,jj,kk] in itertools.permutations([i,j,k]):
-                    fermi2[ii,jj,kk] = True
+        for [i, j, k] in itertools.combinations(v_ind,3):
+            if abs(omega[i] + omega[j] - omega[k]) <= delta_omega_threshold:
+                if phi_ijk[i,j,k]**4 / (64* (omega[i] + omega[j] - omega[k])**3) <= delta_K_threshold:
                     print("Detected " + str(i+1) + " + " + str(j+1) + " = " + str(k+1))
+                    for [ii,jj,kk] in itertools.permutations([i,j,k]):
+                        fermi2[ii,jj,kk] = True
 
 
     chi = np.zeros((n_modes, n_modes))
