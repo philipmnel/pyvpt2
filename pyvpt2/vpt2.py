@@ -295,7 +295,7 @@ def vpt2(mol, options=None):
     for i in v_ind:
         print("2 " + str(i+1), 2*omega[i], overtone[i], (2*omega[i] + overtone[i]), sep="   ") 
 
-    print("\n Combination Bands FREQ (cm-1:")
+    print("\n Combination Bands FREQ (cm-1):")
     for [band_ij, i, j] in band:
         i = int(i); j = int(j)
         print(i+1, j+1, (omega[i] + omega[j]), band_ij, (omega[i] + omega[j] + band_ij), sep="    ")
