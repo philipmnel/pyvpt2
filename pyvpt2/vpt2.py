@@ -162,13 +162,13 @@ def vpt2(mol, options=None):
             print(i + 1, j + 1, k + 1, "    ", zeta[i, j, k])
 
     # Identify Fermi resonances:
-    print("\nIdentifying Fermi resonances... ")
     fermi1 = np.zeros((n_modes, n_modes), dtype=bool)
     fermi2 = np.zeros((n_modes, n_modes, n_modes), dtype=bool)
     delta_omega_threshold = options["FERMI_OMEGA_THRESH"]
     delta_K_threshold = options["FERMI_K_THRESH"]
 
     if options["FERMI"]:
+        print("\nIdentifying Fermi resonances... ")
         for [i, j] in itertools.permutations(v_ind, 2):
             d_omega = abs(2*omega[i] - omega[j])
             if d_omega <=  delta_omega_threshold:
@@ -204,6 +204,7 @@ def vpt2(mol, options=None):
 
                     if fermi1[i,k]:
                         chi[i,i] -= (phi_ijk[i, i, k] ** 2 ) / 2 * (1 / (2 * omega[i] + omega[k]) + 4 / omega[k])
+                        print('Deperturbed 2*' + str(i) + " = " + str(k))
 
                     else:
                         chi[i, i] -= ((8 * omega[i] ** 2 - 3 * omega[k] ** 2) * phi_ijk[i, i, k] ** 2) / (omega[k] * (4 * omega[i] ** 2 - omega[k] ** 2))
@@ -232,6 +233,7 @@ def vpt2(mol, options=None):
                         temp += 1 / (omega[i] - omega[j] + omega[k])
 
                         chi[i, j] += (phi_ijk[i, j, k] ** 2) * temp / 2
+                        print('Deperturbed ' + str(i) + " + " + str(j) + " = " + str(k))
 
                     else:
                         delta = omega[i] + omega[j] - omega[k]
