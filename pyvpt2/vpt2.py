@@ -157,7 +157,7 @@ def vpt2(mol, options=None):
     quartic.check_quartic(phi_iijj, harm)
 
     print("\n B ROTATION CONSTANTS")
-    print(B[0], B[1], B[3], sep='    ')
+    print(B[0], B[1], B[2], sep='    ')
 
     print("\nCORIOLIS:")
     for [i,j,k] in itertools.product(range(3), v_ind, v_ind):
