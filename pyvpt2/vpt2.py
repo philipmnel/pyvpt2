@@ -126,6 +126,10 @@ def vpt2(mol, options=None):
     if "FERMI_K_THRESH" not in options:
         options["FERMI_K_THRESH"] = 0.001
 
+    mol.move_to_com()
+    mol.fix_com(True)
+    mol.fix_orientation(True)
+
     harm = harmonic(mol, options)
     n_modes = harm["n_modes"]
     omega = harm["omega"]
