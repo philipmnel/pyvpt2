@@ -81,9 +81,9 @@ def coriolis(mol, harm):
     B = h / (8 * np.pi ** 2 * c * inertiavals)
     B /= kg_to_amu * meter_to_bohr ** 2
 
-    Mxa = np.matmul(inertiavecs, np.matmul(np.array([[0, 0, 0], [0, 0, 1], [0, -1, 0]]),inertiavecs))
-    Mya = np.matmul(inertiavecs, np.matmul(np.array([[0, 0, -1], [0, 0, 0], [1, 0, 0]]),inertiavecs))
-    Mza = np.matmul(inertiavecs, np.matmul(np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 0]]),inertiavecs))
+    Mxa = np.matmul(inertiavecs, np.matmul(np.array([[0, 0, 0], [0, 0, 1], [0, -1, 0]]), inertiavecs.T))
+    Mya = np.matmul(inertiavecs, np.matmul(np.array([[0, 0, -1], [0, 0, 0], [1, 0, 0]]), inertiavecs.T))
+    Mza = np.matmul(inertiavecs, np.matmul(np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 0]]), inertiavecs.T))
 
     Mx = np.kron(np.eye(mol.natom()), Mxa)
     My = np.kron(np.eye(mol.natom()), Mya)
