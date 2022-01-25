@@ -77,13 +77,13 @@ def coriolis(mol, harm):
     kg_to_amu = qcel.constants.get("atomic mass constant")
     n_atom = mol.natom()
 
-    inertia = mol.inertia_tensor().np
-    B = h / (8 * np.pi ** 2 * c * np.diag(inertia))
+    inertiavals, inertiavecs  = np.linalg.eig(mol.inertia_tensor().np)
+    B = h / (8 * np.pi ** 2 * c * inertiavals)
     B /= kg_to_amu * meter_to_bohr ** 2
 
-    Mxa = np.array([[0, 0, 0], [0, 0, 1], [0, -1, 0]])
-    Mya = np.array([[0, 0, -1], [0, 0, 0], [1, 0, 0]])
-    Mza = np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 0]])
+    Mxa = np.matmul(inertiavecs, np.matmaul(np.array([[0, 0, 0], [0, 0, 1], [0, -1, 0]]),inertiavecs))
+    Mya = np.matmul(inertiavecs, np.matmaul(np.array([[0, 0, -1], [0, 0, 0], [1, 0, 0]]),inertiavecs))
+    Mza = np.matmul(inertiavecs, np.matmaul(np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 0]]),inertiavecs))
 
     Mx = np.kron(np.eye(mol.natom()), Mxa)
     My = np.kron(np.eye(mol.natom()), Mya)
@@ -124,7 +124,7 @@ def vpt2(mol, options=None):
     if "FERMI_OMEGA_THRESH" not in options:
         options["FERMI_OMEGA_THRESH"] = 100
     if "FERMI_K_THRESH" not in options:
-        options["FERMI_K_THRESH"] = 10
+        options["FERMI_K_THRESH"] = 0.001
 
     harm = harmonic(mol, options)
     n_modes = harm["n_modes"]
@@ -162,8 +162,8 @@ def vpt2(mol, options=None):
             print(i + 1, j + 1, k + 1, "    ", zeta[i, j, k])
 
     # Identify Fermi resonances:
-    fermi1 = np.zeros((n_modes, n_modes), dtype=bool)
-    fermi2 = np.zeros((n_modes, n_modes, n_modes), dtype=bool)
+    fermi1 = np.zeros((n_modes, n_modes), dtype=bool) # 2*ind1 = ind2
+    fermi2 = np.zeros((n_modes, n_modes, n_modes), dtype=bool) # ind1 + ind2 = ind3
     delta_omega_threshold = options["FERMI_OMEGA_THRESH"]
     delta_K_threshold = options["FERMI_K_THRESH"]
 
@@ -173,15 +173,16 @@ def vpt2(mol, options=None):
             d_omega = abs(2*omega[i] - omega[j])
             if d_omega <=  delta_omega_threshold:
                 d_K = phi_ijk[i,i,j]**4 / (256*d_omega**3)
-                if d_K <= delta_K_threshold:
+                if d_K >= delta_K_threshold:
                     fermi1[i,j] = True
+                    fermi2[i,i,j] = True
                     print("Detected 2(" + str(i+1) + ") = " + str(j+1) + ", d_omega = " + str(d_omega) + ", d_K = " + str(d_K))
 
         for [i, j, k] in itertools.permutations(v_ind,3):
             d_omega = abs(omega[i] + omega[j] - omega[k])
             if d_omega <= delta_omega_threshold:
                 d_K = phi_ijk[i,j,k]**4 / (64* d_omega**3)
-                if d_K <= delta_K_threshold:
+                if d_K >= delta_K_threshold:
                     print("Detected " + str(i+1) + " + " + str(j+1) + " = " + str(k+1) + ", d_omega = " + str(d_omega) + ", d_K = " + str(d_K))
                     fermi2[i,j,k] = True
 
@@ -195,16 +196,12 @@ def vpt2(mol, options=None):
         chi0 -= (7 / 9) * phi_ijk[i, i, i] ** 2 / omega[i]
 
         for j in v_ind:
-
             if i == j:
-
                 chi[i, i] = phi_iijj[i, i]
 
                 for k in v_ind:
-
                     if fermi1[i,k]:
                         chi[i,i] -= (phi_ijk[i, i, k] ** 2 ) / 2 * (1 / (2 * omega[i] + omega[k]) + 4 / omega[k])
-                        print('Deperturbed 2*' + str(i) + " = " + str(k))
 
                     else:
                         chi[i, i] -= ((8 * omega[i] ** 2 - 3 * omega[k] ** 2) * phi_ijk[i, i, k] ** 2) / (omega[k] * (4 * omega[i] ** 2 - omega[k] ** 2))
@@ -212,9 +209,7 @@ def vpt2(mol, options=None):
                 chi[i, i] /= 16
 
             else:
-
                 chi0 += 3 * omega[i]* phi_ijk[i, j, j] ** 2 / (4 * omega[j] ** 2 - omega[i] ** 2)
-
                 chi[i, j] = phi_iijj[i, j]
 
                 rot = 0
@@ -224,23 +219,31 @@ def vpt2(mol, options=None):
                 chi[i, j] += (4 * (omega[i] ** 2 + omega[j] ** 2) / (omega[i] * omega[j]) * rot)
 
                 for k in v_ind:
-
                     chi[i, j] -= (phi_ijk[i, i, k] * phi_ijk[j, j, k]) / omega[k]
 
                     if fermi2[i, j, k]:
                         temp = 1 / (omega[i] + omega[j] + omega[k])
                         temp += 1 / (-omega[i] + omega[j] + omega[k])
                         temp += 1 / (omega[i] - omega[j] + omega[k])
-
                         chi[i, j] += (phi_ijk[i, j, k] ** 2) * temp / 2
-                        print('Deperturbed ' + str(i) + " + " + str(j) + " = " + str(k))
+
+                    elif fermi2[j, k, i]:
+                        temp = 1 / (omega[i] + omega[j] + omega[k])
+                        temp += 1 / (omega[i] + omega[j] - omega[k])
+                        temp += 1 / (omega[i] - omega[j] + omega[k])
+                        chi[i, j] += (phi_ijk[i, j, k] ** 2) * temp / 2
+
+                    elif fermi2[k, i, j]:
+                        temp = 1 / (omega[i] + omega[j] + omega[k])
+                        temp += 1 / (-omega[i] + omega[j] + omega[k])
+                        temp += 1 / (omega[i] + omega[j] - omega[k])
+                        chi[i, j] += (phi_ijk[i, j, k] ** 2) * temp / 2
 
                     else:
                         delta = omega[i] + omega[j] - omega[k]
                         delta *= omega[i] + omega[j] + omega[k]
                         delta *= omega[i] - omega[j] + omega[k]
                         delta *= omega[i] - omega[j] - omega[k]
-
                         chi[i, j] += 2 * omega[k] * (omega[i] ** 2 + omega[j] ** 2 - omega[k] ** 2) * phi_ijk[i, j, k] ** 2 / delta
 
                     if (j > i) and (k > j):
