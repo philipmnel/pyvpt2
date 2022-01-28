@@ -11,13 +11,12 @@ noreorient
 
 O
 H 1 R1
-H 1 R2 2 A
+H 1 R1 2 A
 
 R1 = 0.94731025924472878064
-R2 = 0.94731025924472878064
 A = 105.50289
 
-symmetry c1
+symmetry c2v
 """)
 
 psi4.set_options({'g_convergence': 'GAU_VERYTIGHT',

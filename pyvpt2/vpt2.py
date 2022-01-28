@@ -2,7 +2,6 @@ import psi4
 import numpy as np
 import qcelemental as qcel
 import itertools
-import math
 
 from . import quartic
 
