@@ -190,8 +190,9 @@ def vpt2(mol, options=None):
             if d_omega <= delta_omega_threshold:
                 d_K = phi_ijk[i,j,k]**4 / (64* d_omega**3)
                 if d_K >= delta_K_threshold:
-                    print("Detected " + str(i+1) + " + " + str(j+1) + " = " + str(k+1) + ", d_omega = " + str(d_omega) + ", d_K = " + str(d_K))
                     fermi2[i,j,k] = True
+                    if fermi2[j,i,k]: continue    # only print once for each resonance
+                    print("Detected " + str(i+1) + " + " + str(j+1) + " = " + str(k+1) + ", d_omega = " + str(d_omega) + ", d_K = " + str(d_K))
 
 
     chi = np.zeros((n_modes, n_modes))
@@ -274,9 +275,8 @@ def vpt2(mol, options=None):
                 zpe += (1 / 4) * chi[i, j]
 
     print("\n CHI:")
-    for i in v_ind:
-        for j in v_ind:
-            print(i + 1, j + 1, "    ", chi[i, j])
+    for [i,j] in itertools.combinations_with_replacement(v_ind,2):
+        print(i + 1, j + 1, "    ", chi[i, j])
 
     anharmonic = np.zeros(n_modes)
     overtone = np.zeros(n_modes)
@@ -300,14 +300,17 @@ def vpt2(mol, options=None):
             band[indx, 0] += 0.5 * (chi[i,k] + chi[j,k])
 
     print("\n Fundamentals FREQ (cm-1):")
+    print("    Harmonic    Anharm. Corr.    Fundamental")
     for i in v_ind:
         print(i + 1, omega[i], anharmonic[i], (omega[i] + anharmonic[i]), sep="    ")
 
     print("\n Overtones FREQ (cm-1):")
+    print("    Harmonic    Anharm. Corr.    Overtones")
     for i in v_ind:
         print("2 " + str(i+1), 2*omega[i], overtone[i], (2*omega[i] + overtone[i]), sep="   ") 
 
     print("\n Combination Bands FREQ (cm-1):")
+    print("    Harmonic    Anharm. Corr.    Band")
     for [band_ij, i, j] in band:
         i = int(i); j = int(j)
         print(i+1, j+1, (omega[i] + omega[j]), band_ij, (omega[i] + omega[j] + band_ij), sep="    ")
