@@ -30,8 +30,9 @@ def gen_disp_geom(mol, disp, harm, options):
     disp_mol = mol.clone()
     disp_mol.set_geometry(psi4.core.Matrix.from_array(disp_geom))
     disp_mol.reinterpret_coordentry(False)
+    disp_mol.reset_point_group('C1')
     disp_mol.update_geometry()
-    disp_mol.find_point_group()
+    # disp_mol.reset_point_group(disp_mol.get_full_point_group())
 
     return disp_mol
 
