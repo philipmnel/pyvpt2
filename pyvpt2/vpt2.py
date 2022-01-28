@@ -121,9 +121,9 @@ def vpt2(mol, options=None):
     if "FERMI" not in options:
         options["FERMI"] = True
     if "FERMI_OMEGA_THRESH" not in options:
-        options["FERMI_OMEGA_THRESH"] = 100
+        options["FERMI_OMEGA_THRESH"] = 200
     if "FERMI_K_THRESH" not in options:
-        options["FERMI_K_THRESH"] = 0.001
+        options["FERMI_K_THRESH"] = 0.01
 
     mol.move_to_com()
     mol.fix_com(True)
