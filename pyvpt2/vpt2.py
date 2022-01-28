@@ -146,24 +146,24 @@ def vpt2(mol, options=None):
     elif options["FD"] == "HESSIAN":
         phi_ijk, phi_iijj = quartic.force_field_H(mol, harm, options)
 
-    print("\n\nCUBIC:")
+    print("\n\nCubic (cm-1):")
     for [i,j,k] in itertools.product(v_ind, repeat=3):
         if abs(phi_ijk[i, j, k]) > 10:
             print(i + 1, j + 1, k + 1, "    ", phi_ijk[i, j, k])
 
     quartic.check_cubic(phi_ijk, harm)
 
-    print("\nQUARTIC:")
+    print("\nQuartic (cm-1):")
     for [i,j] in itertools.product(v_ind, repeat=2):
         if abs(phi_iijj[i, j]) > 10:
             print(i + 1, i + 1, j + 1, j + 1, "    ", phi_iijj[i, j])
 
     quartic.check_quartic(phi_iijj, harm)
 
-    print("\n B ROTATION CONSTANTS")
+    print("\nB Rotational Constants (cm-1)")
     print(B[0], B[1], B[2], sep='    ')
 
-    print("\nCORIOLIS:")
+    print("\nCoriolis Constants (cm-1):")
     for [i,j,k] in itertools.product(range(3), v_ind, v_ind):
         if abs(zeta[i, j, k]) > 1e-5:
             print(i + 1, j + 1, k + 1, "    ", zeta[i, j, k])
@@ -171,6 +171,7 @@ def vpt2(mol, options=None):
     # Identify Fermi resonances:
     fermi1 = np.zeros((n_modes, n_modes), dtype=bool) # 2*ind1 = ind2
     fermi2 = np.zeros((n_modes, n_modes, n_modes), dtype=bool) # ind1 + ind2 = ind3
+    fermi_chi_list = np.zeros((n_modes, n_modes), dtype=bool) # list of deperturbed chi constants
     delta_omega_threshold = options["FERMI_OMEGA_THRESH"]
     delta_K_threshold = options["FERMI_K_THRESH"]
 
@@ -183,6 +184,8 @@ def vpt2(mol, options=None):
                 if d_K >= delta_K_threshold:
                     fermi1[i,j] = True
                     fermi2[i,i,j] = True
+                    fermi_chi_list[i,i] = True
+                    fermi_chi_list[i,j] = True
                     print("Detected 2(" + str(i+1) + ") = " + str(j+1) + ", d_omega = " + str(d_omega) + ", d_K = " + str(d_K))
 
         for [i, j, k] in itertools.permutations(v_ind,3):
@@ -191,9 +194,14 @@ def vpt2(mol, options=None):
                 d_K = phi_ijk[i,j,k]**4 / (64* d_omega**3)
                 if d_K >= delta_K_threshold:
                     fermi2[i,j,k] = True
+                    fermi_chi_list[i,j] = True
+                    fermi_chi_list[i,k] = True
+                    fermi_chi_list[j,k] = True
                     if fermi2[j,i,k]: continue    # only print once for each resonance
                     print("Detected " + str(i+1) + " + " + str(j+1) + " = " + str(k+1) + ", d_omega = " + str(d_omega) + ", d_K = " + str(d_K))
 
+    if np.sum(fermi_chi_list) == 0:
+        print("None detected.")
 
     chi = np.zeros((n_modes, n_modes))
     chi0 = 0.0
@@ -274,9 +282,10 @@ def vpt2(mol, options=None):
             if j > i:
                 zpe += (1 / 4) * chi[i, j]
 
-    print("\n CHI:")
-    for [i,j] in itertools.combinations_with_replacement(v_ind,2):
-        print(i + 1, j + 1, "    ", chi[i, j])
+    print("\nAnharmonic Constants (cm-1)")
+    rows = [[i+1, j+1, '*' * fermi_chi_list[i,j], chi[i, j]] for [i,j] in itertools.combinations_with_replacement(v_ind,2)]
+    for row in rows:
+        print("{: >2} {: >2} {: >1} {: >10.4f}".format(*row))
 
     anharmonic = np.zeros(n_modes)
     overtone = np.zeros(n_modes)
@@ -299,17 +308,18 @@ def vpt2(mol, options=None):
             band[i, j] += 0.5 * (chi[i,k] + chi[j,k])
         band[j, i] = band[i, j]
 
-    print("\n Fundamentals FREQ (cm-1):")
+    print("\nVPT2 analysis complete...")
+    print("\nFundamentals (cm-1):")
     header = ["", "Harmonic", "Anharmonic", "Anharmonic"]
     header2 = ["Mode", "Frequency", "Correction", "Frequency"]
     rows = [[i+1, omega[i], anharmonic[i], omega[i] + anharmonic[i]] for i in v_ind]
-    print("{: >4} {: >20} {: >20} {:>20}".format(*header))
-    print("{: >4} {: >20} {: >20} {:>20}".format(*header2))
+    print("{: >8} {: >20} {: >20} {: >20}".format(*header))
+    print("{: >8} {: >20} {: >20} {: >20}".format(*header2))
     for row in rows:
-        print("{: >4} {: >20.4f} {: >20.4f} {: >20.4f}".format(*row))
+        print("{: >8} {: >20.4f} {: >20.4f} {: >20.4f}".format(*row))
 
 
-    print("\n Overtones FREQ (cm-1):")
+    print("\nOvertones (cm-1):")
     header = ["", "", "Harmonic", "Anharmonic", "Anharmonic"]
     header2 = ["", "Mode", "Frequency", "Correction", "Frequency"]
     rows = [[2, i+1, 2*omega[i], overtone[i], 2*omega[i] + overtone[i]] for i in v_ind]
@@ -318,7 +328,7 @@ def vpt2(mol, options=None):
     for row in rows:
         print("{: >3} {: >4} {: >20.4f} {: >20.4f} {: >20.4f}".format(*row))
 
-    print("\n Combination Bands FREQ (cm-1):")
+    print("\nCombination Bands (cm-1):")
     header = ["", "" , "Harmonic", "Anharmonic", "Anharmonic"]
     header2 = ["", "Mode", "Frequency", "Correction", "Frequency"]
     rows = [[i+1, j+1, omega[i] + omega[j], band[i,j], omega[i] + omega[j] + band[i,j]] for [i, j] in itertools.combinations(v_ind,2)]
@@ -327,7 +337,7 @@ def vpt2(mol, options=None):
     for row in rows:
         print("{: >3} {: >4} {: >20.4f} {: >20.4f} {: >20.4f}".format(*row))
 
-    print("\n ZPE:")
+    print("\nZPE:")
     print(zpe)
 
     return omega, anharmonic
