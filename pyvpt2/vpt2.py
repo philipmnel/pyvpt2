@@ -280,7 +280,7 @@ def vpt2(mol, options=None):
 
     anharmonic = np.zeros(n_modes)
     overtone = np.zeros(n_modes)
-    band = np.zeros((math.comb(len(v_ind), 2), 3))
+    band = np.zeros((n_modes, n_modes))
 
     for i in v_ind:
         anharmonic[i] = 2 * chi[i, i]
@@ -291,29 +291,41 @@ def vpt2(mol, options=None):
             anharmonic[i] += 0.5 * chi[i, j]
             overtone[i] += chi[i, j]
 
-    for indx, [i, j] in enumerate(itertools.combinations(v_ind, 2)):
-        band[indx, 1] = i; band[indx, 2] = j  
-        band[indx, 0] = 2 * chi[i, i] + 2 * chi[j, j] + 2 * chi[i, j]
+    for [i, j] in itertools.combinations(v_ind, 2):
+        band[i, j] = 2 * chi[i, i] + 2 * chi[j, j] + 2 * chi[i, j]
         for k in v_ind:
             if k == i: continue
             elif k == j: continue
-            band[indx, 0] += 0.5 * (chi[i,k] + chi[j,k])
+            band[i, j] += 0.5 * (chi[i,k] + chi[j,k])
+        band[j, i] = band[i, j]
 
     print("\n Fundamentals FREQ (cm-1):")
-    print("    Harmonic    Anharm. Corr.    Fundamental")
-    for i in v_ind:
-        print(i + 1, omega[i], anharmonic[i], (omega[i] + anharmonic[i]), sep="    ")
+    header = ["", "Harmonic", "Anharmonic", "Anharmonic"]
+    header2 = ["Mode", "Frequency", "Correction", "Frequency"]
+    rows = [[i+1, omega[i], anharmonic[i], omega[i] + anharmonic[i]] for i in v_ind]
+    print("{: >4} {: >20} {: >20} {:>20}".format(*header))
+    print("{: >4} {: >20} {: >20} {:>20}".format(*header2))
+    for row in rows:
+        print("{: >4} {: >20.4f} {: >20.4f} {: >20.4f}".format(*row))
+
 
     print("\n Overtones FREQ (cm-1):")
-    print("    Harmonic    Anharm. Corr.    Overtones")
-    for i in v_ind:
-        print("2 " + str(i+1), 2*omega[i], overtone[i], (2*omega[i] + overtone[i]), sep="   ") 
+    header = ["", "", "Harmonic", "Anharmonic", "Anharmonic"]
+    header2 = ["", "Mode", "Frequency", "Correction", "Frequency"]
+    rows = [[2, i+1, 2*omega[i], overtone[i], 2*omega[i] + overtone[i]] for i in v_ind]
+    print("{: >3} {: >4} {: >20} {: >20} {: >20}".format(*header))
+    print("{: >3} {: >4} {: >20} {: >20} {: >20}".format(*header2))
+    for row in rows:
+        print("{: >3} {: >4} {: >20.4f} {: >20.4f} {: >20.4f}".format(*row))
 
     print("\n Combination Bands FREQ (cm-1):")
-    print("    Harmonic    Anharm. Corr.    Band")
-    for [band_ij, i, j] in band:
-        i = int(i); j = int(j)
-        print(i+1, j+1, (omega[i] + omega[j]), band_ij, (omega[i] + omega[j] + band_ij), sep="    ")
+    header = ["", "" , "Harmonic", "Anharmonic", "Anharmonic"]
+    header2 = ["", "Mode", "Frequency", "Correction", "Frequency"]
+    rows = [[i+1, j+1, omega[i] + omega[j], band[i,j], omega[i] + omega[j] + band[i,j]] for [i, j] in itertools.combinations(v_ind,2)]
+    print("{: >3} {: >4} {: >20} {: >20} {: >20}".format(*header))
+    print("{: >3} {: >4} {: >20} {: >20} {: >20}".format(*header2))
+    for row in rows:
+        print("{: >3} {: >4} {: >20.4f} {: >20.4f} {: >20.4f}".format(*row))
 
     print("\n ZPE:")
     print(zpe)
