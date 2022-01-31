@@ -77,7 +77,7 @@ def coriolis(mol, harm):
     n_atom = mol.natom()
 
     inertiavals, inertiavecs  = np.linalg.eig(mol.inertia_tensor().np)
-    B = h / (8 * np.pi ** 2 * c * inertiavals)
+    B = np.where(inertiavals == 0.0, 0.0, h / (8 * np.pi ** 2 * c * inertiavals))
     B /= kg_to_amu * meter_to_bohr ** 2
 
     Mxa = np.matmul(inertiavecs, np.matmul(np.array([[0, 0, 0], [0, 0, 1], [0, -1, 0]]), inertiavecs.T))
