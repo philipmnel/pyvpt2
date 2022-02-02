@@ -5,6 +5,16 @@ import itertools
 
 from . import quartic
 
+wave_to_kcal = qcel.constants.conversion_factor("wavenumber", "kilocalorie per mol")
+wave_to_kj = qcel.constants.conversion_factor("wavenumber", "kilojoule per mol")
+wave_to_hartree = qcel.constants.get("inverse meter-hartree relationship") * 100
+meter_to_bohr = qcel.constants.get("Bohr radius")
+joule_to_hartree = qcel.constants.get("hartree-joule relationship")
+mdyneA_to_hartreebohr = 100 * (meter_to_bohr ** 2) / (joule_to_hartree)
+h = qcel.constants.get("Planck constant")
+c = qcel.constants.get("speed of light in vacuum") * 100
+kg_to_amu = qcel.constants.get("atomic mass constant")
+
 def harmonic(mol, options):
     """
     harmonic: performs harmonic analysis and parses normal modes
@@ -26,10 +36,6 @@ def harmonic(mol, options):
     q = wfn.frequency_analysis["q"].data
     n_modes = len(trv)
 
-    wave_to_hartree = qcel.constants.get("inverse meter-hartree relationship") * 100
-    meter_to_bohr = qcel.constants.get("Bohr radius")
-    joule_to_hartree = qcel.constants.get("hartree-joule relationship")
-    mdyneA_to_hartreebohr = 100 * (meter_to_bohr ** 2) / (joule_to_hartree)
 
     omega = omega.real
     omega_au = omega * wave_to_hartree
@@ -45,6 +51,8 @@ def harmonic(mol, options):
         else:
             modes_unitless[:, i] *= 0.0
 
+    zpve = np.sum(list(omega[i] for i in v_ind)) / 2
+
     harm = {}
     harm["E0"] = E0
     harm["omega"] = omega
@@ -54,6 +62,7 @@ def harmonic(mol, options):
     harm["modes_unitless"] = modes_unitless
     harm["gamma"] = gamma
     harm["q"] = q
+    harm["zpve"] = zpve 
 
     return harm
 
@@ -70,10 +79,6 @@ def coriolis(mol, harm):
     """
 
     q = harm["q"]
-    h = qcel.constants.get("Planck constant")
-    c = qcel.constants.get("speed of light in vacuum") * 100
-    meter_to_bohr = qcel.constants.get("Bohr radius")
-    kg_to_amu = qcel.constants.get("atomic mass constant")
     n_atom = mol.natom()
 
     inertiavals, inertiavecs  = np.linalg.eig(mol.inertia_tensor().np)
@@ -274,12 +279,12 @@ def vpt2(mol, options=None):
 
     chi0 /= 64
 
-    zpe = chi0
+    zpve = chi0
     for i in v_ind:
-        zpe += (1 / 2) * (omega[i] + (1 / 2) * chi[i, i])
+        zpve += (1 / 2) * (omega[i] + (1 / 2) * chi[i, i])
         for j in v_ind:
             if j > i:
-                zpe += (1 / 4) * chi[i, j]
+                zpve += (1 / 4) * chi[i, j]
 
     print("\nAnharmonic Constants (cm-1)")
     rows = [[i+1, j+1, '*' * fermi_chi_list[i,j], chi[i, j]] for [i,j] in itertools.combinations_with_replacement(v_ind,2)]
@@ -336,7 +341,14 @@ def vpt2(mol, options=None):
     for row in rows:
         print("{: >3} {: >4} {: >20.4f} {: >20.4f} {: >20.4f}".format(*row))
 
-    print("\nZPE:")
-    print(zpe)
+    print("\nZero-Point Vibrational Energy:")
+    header = ["", "Harmonic", "Anharmonic", "Anharmonic"]
+    header2 = ["", "ZPVE", "Correction", "ZPVE"]
+    unit_list = [["cm-1:", 1], ["kcal/mol:", wave_to_kcal], ["kJ/mol:", wave_to_kj]]
+    rows = [[unit_label, factor * harm["zpve"], factor * (zpve - harm["zpve"]), factor * zpve] for [unit_label, factor] in unit_list]
+    print("{: >9} {: >20} {: >20} {: >20}".format(*header))
+    print("{: >9} {: >20} {: >20} {: >20}".format(*header2))
+    for row in rows:
+        print("{: >9} {: >20.4f} {: >20.4f} {: >20.4f}".format(*row))
 
     return omega, anharmonic
