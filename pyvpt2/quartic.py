@@ -403,6 +403,13 @@ def force_field_H(mol, harm, options):
     return phi_ijk, phi_iijj
 
 def check_cubic(phi_ijk, harm):
+    """
+    check_cubic: checks cubic force constants for any numerical inconsistencies;
+    prints results to output file
+
+    phi_ijk: array of cubic force constants
+    harm: harmonic results dictionary
+    """
 
     v_ind = harm["v_ind"]
 
@@ -420,6 +427,13 @@ def check_cubic(phi_ijk, harm):
         print("No inconsistencies found")
 
 def check_quartic(phi_iijj, harm):
+    """
+    check_quartic: checks quartic force constants for any numerical inconsistencies;
+    prints results to output file
+
+    phi_iijj: array of quartic force constants
+    harm: harmonic results dictionary
+    """
 
     v_ind = harm["v_ind"]
     
