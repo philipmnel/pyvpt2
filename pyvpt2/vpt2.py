@@ -27,7 +27,9 @@ def harmonic(mol, options):
 
     method = options["METHOD"]
 
-    E0, wfn = psi4.frequency(method, dertype=1, molecule=mol, return_wfn=True)
+    E0, wfn = psi4.frequency(method, molecule=mol, return_wfn=True)
+    G0 = wfn.gradient().np
+    H0 = wfn.hessian().np
 
     omega = wfn.frequency_analysis["omega"].data
     modes = wfn.frequency_analysis["x"].data
@@ -54,15 +56,17 @@ def harmonic(mol, options):
     zpve = np.sum(list(omega[i] for i in v_ind)) / 2
 
     harm = {}
-    harm["E0"] = E0
-    harm["omega"] = omega
-    harm["modes"] = modes
-    harm["v_ind"] = v_ind
-    harm["n_modes"] = n_modes
-    harm["modes_unitless"] = modes_unitless
-    harm["gamma"] = gamma
-    harm["q"] = q
-    harm["zpve"] = zpve 
+    harm["E0"] = E0 # Energy
+    harm["G0"] = G0 # Gradient
+    harm["H0"] = H0 # Hessian
+    harm["omega"] = omega # Frequencies (cm-1)
+    harm["modes"] = modes # Un mass weighted normal modes
+    harm["v_ind"] = v_ind # Indices of vibrational modes
+    harm["n_modes"] = n_modes # Number of vibrational modes
+    harm["modes_unitless"] = modes_unitless # Unitless normal modes, used for displacements
+    harm["gamma"] = gamma # Unitless scaling factor
+    harm["q"] = q # Normalized, mass weighted normal modes, used for coord transformations
+    harm["zpve"] = zpve # Zero point vibrational correction 
 
     return harm
 

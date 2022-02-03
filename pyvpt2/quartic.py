@@ -70,21 +70,19 @@ def disp_grad(mol, disp, harm, options):
     """
 
     method = options["METHOD"]
-    gamma = harm["gamma"]
-    q = harm["modes"]
-    n_atom = mol.natom()
 
     disp_mol = gen_disp_geom(mol, disp, harm, options)
-
     grad = psi4.gradient(method, molecule=disp_mol).np
-
-    grad = grad.reshape(3 * n_atom, 1)
-    gradQ = np.matmul(np.transpose(q), grad)
-    gradQ = gradQ.reshape(3 * n_atom)
-    gradQ = np.einsum("i,i->i", gradQ, np.sqrt(gamma), optimize=True)
+    gradQ = transform_grad(harm, grad)
 
     return gradQ
 
+def transform_grad(harm, grad):
+    q = harm["modes"]
+    gamma = harm["gamma"]
+    gradQ = np.matmul(q.transpose(), grad.reshape(-1))
+    gradQ = np.einsum("i,i->i", gradQ, np.sqrt(gamma), optimize=True)
+    return gradQ
 
 def disp_hess(mol, disp, harm, options):
     """
@@ -99,18 +97,19 @@ def disp_hess(mol, disp, harm, options):
     """
 
     method = options["METHOD"]
-    gamma = harm["gamma"]
-    q = harm["modes"]
 
     disp_mol = gen_disp_geom(mol, disp, harm, options)
-
     hess = psi4.hessian(method, molecule=disp_mol).np
-
-    hessQ = np.matmul(np.transpose(q), np.matmul(hess, q))
-    hessQ = np.einsum("ij,i,j->ij", hessQ, np.sqrt(gamma), np.sqrt(gamma), optimize=True)
+    hessQ = transform_hessian(harm, hess)
 
     return hessQ
 
+def transform_hessian(harm, hess):
+    q = harm["modes"]
+    gamma = harm["gamma"]
+    hessQ = np.matmul(q.transpose(), np.matmul(hess, q))
+    hessQ = np.einsum("ij,i,j->ij", hessQ, np.sqrt(gamma), np.sqrt(gamma), optimize=True)
+    return hessQ
 
 def force_field_E(mol, harm, options):
 
@@ -240,16 +239,12 @@ def force_field_G(mol, harm, options):
     phi_ijk = np.zeros((n_modes, n_modes, n_modes))
     phi_iijj = np.zeros((n_modes, n_modes))
 
-    disp_num = 1 + 4 * len(v_ind) + 4 * math.comb(len(v_ind),2)
+    disp_num = 4 * len(v_ind) + 4 * math.comb(len(v_ind),2)
     disp_counter = 1
     print("{0} displacements needed: ".format(disp_num), end='')
     sys.stdout.flush()
 
-    grad0 = disp_grad(mol, {0: 0}, harm, options)
-    print(disp_counter, end=' ')
-    disp_counter += 1
-    sys.stdout.flush()
-
+    grad0 = transform_grad(harm, harm['G0'])
     grad_p = np.zeros((n_modes, n_modes))
     grad_n = np.zeros((n_modes, n_modes))
     grad_pp = np.zeros((n_modes, n_modes, n_modes))
@@ -353,17 +348,14 @@ def force_field_H(mol, harm, options):
     phi_ijk = np.zeros((n_modes, n_modes, n_modes))
     phi_iijj = np.zeros((n_modes, n_modes))
 
-    disp_num = 1 + 2 * len(v_ind)
+    disp_num = 2 * len(v_ind)
     disp_counter = 1
     print("{0} displacements needed: ".format(disp_num), end='')
     sys.stdout.flush()
 
 
     # REDUNDANT CALCULATION - REWRITE THIS
-    hess0 = disp_hess(mol, {0: 0}, harm, options)
-    print(disp_counter, end=' ')
-    disp_counter += 1
-    sys.stdout.flush()
+    hess0 = transform_hessian(harm, harm["H0"])
     hess_p = np.zeros((n_modes, n_modes, n_modes))
     hess_n = np.zeros((n_modes, n_modes, n_modes))
 
