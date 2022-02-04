@@ -86,7 +86,8 @@ def coriolis(mol, harm):
     n_atom = mol.natom()
 
     inertiavals, inertiavecs  = np.linalg.eig(mol.inertia_tensor().np)
-    B = np.where(inertiavals == 0.0, 0.0, h / (8 * np.pi ** 2 * c * inertiavals))
+    with np.errstate(divide = 'ignore'):
+        B = np.where(inertiavals == 0.0, 0.0, h / (8 * np.pi ** 2 * c * inertiavals))
     B /= kg_to_amu * meter_to_bohr ** 2
 
     Mxa = np.matmul(inertiavecs, np.matmul(np.array([[0, 0, 0], [0, 0, 1], [0, -1, 0]]), inertiavecs.T))
@@ -137,6 +138,12 @@ def vpt2(mol, options=None):
     mol.move_to_com()
     mol.fix_com(True)
     mol.fix_orientation(True)
+    rotor_type = mol.rotor_type()
+
+    if (rotor_type in ["RT_LINEAR", "RT_ASYMMETRIC_TOP"]) == False:
+        print("Error: pyVPT2 can only be run on linear or asymmetric top molecules.")
+        print("Rotor type is " + rotor_type)
+        return {}
 
     harm = harmonic(mol, options)
     n_modes = harm["n_modes"]
@@ -276,6 +283,7 @@ def vpt2(mol, options=None):
                 chi[i, j] /= 4
 
     for b_ind in range(0,3):
+        if rotor_type == "RT_LINEAR": continue
         zeta_sum = 0
         for [i,j] in list(itertools.combinations(v_ind,2)):
             zeta_sum += (zeta[b_ind, i, j])**2
