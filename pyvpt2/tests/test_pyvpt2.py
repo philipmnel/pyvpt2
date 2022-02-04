@@ -4,9 +4,7 @@ Unit and regression test for the pyvpt2 package.
 
 # Import package, test suite, and other packages as needed
 import sys
-
 import pytest
-
 import pyvpt2
 import psi4
 
@@ -34,11 +32,12 @@ def test_vpt2_energy():
     psi4.set_options({'d_convergence': 1e-12,
                 'e_convergence': 1e-12,
                 'scf_type': 'direct',
-                'puream': True})
+                'puream': True,
+                'points': 5})
 
     options = {'METHOD': 'scf/6-31g*',
             'FD': 'ENERGY',
-            'DISP_SIZE': 0.050}
+            'DISP_SIZE': 0.05}
 
     cfour_omega = [1826.8154, 4060.2203, 4177.8273]
     cfour_anharmonic = [-54.0635, -158.2345, -177.9707] 
@@ -76,7 +75,7 @@ def test_vpt2_gradient():
     
     options = {'METHOD': 'scf/6-31g*',
             'FD': 'GRADIENT',
-            'DISP_SIZE': 0.050}
+            'DISP_SIZE': 0.05}
 
     cfour_omega = [1826.8154, 4060.2203, 4177.8273]
     cfour_anharmonic = [-54.0635, -158.2345, -177.9707] 
@@ -114,7 +113,7 @@ def test_vpt2_hessian():
     
     options = {'METHOD': 'scf/6-31g*',
             'FD': 'HESSIAN',
-            'DISP_SIZE': 0.050}
+            'DISP_SIZE': 0.05}
 
     cfour_omega = [1826.8154, 4060.2203, 4177.8273]
     cfour_anharmonic = [-54.0635, -158.2345, -177.9707] 
