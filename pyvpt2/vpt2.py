@@ -246,22 +246,22 @@ def vpt2(mol, options=None):
                     chi[i, j] -= (phi_ijk[i, i, k] * phi_ijk[j, j, k]) / omega[k]
 
                     if fermi2[i, j, k]:
-                        temp = 1 / (omega[i] + omega[j] + omega[k])
-                        temp += 1 / (-omega[i] + omega[j] + omega[k])
-                        temp += 1 / (omega[i] - omega[j] + omega[k])
-                        chi[i, j] += (phi_ijk[i, j, k] ** 2) * temp / 2
+                        delta = 1 / (omega[i] + omega[j] + omega[k])
+                        delta += 1 / (-omega[i] + omega[j] + omega[k])
+                        delta += 1 / (omega[i] - omega[j] + omega[k])
+                        chi[i, j] += (phi_ijk[i, j, k] ** 2) * delta / 2
 
                     elif fermi2[j, k, i]:
-                        temp = 1 / (omega[i] + omega[j] + omega[k])
-                        temp += 1 / (omega[i] + omega[j] - omega[k])
-                        temp += 1 / (omega[i] - omega[j] + omega[k])
-                        chi[i, j] += (phi_ijk[i, j, k] ** 2) * temp / 2
+                        delta = 1 / (omega[i] + omega[j] + omega[k])
+                        delta += 1 / (omega[i] + omega[j] - omega[k])
+                        delta += 1 / (omega[i] - omega[j] + omega[k])
+                        chi[i, j] += (phi_ijk[i, j, k] ** 2) * delta / 2
 
                     elif fermi2[k, i, j]:
-                        temp = 1 / (omega[i] + omega[j] + omega[k])
-                        temp += 1 / (-omega[i] + omega[j] + omega[k])
-                        temp += 1 / (omega[i] + omega[j] - omega[k])
-                        chi[i, j] += (phi_ijk[i, j, k] ** 2) * temp / 2
+                        delta = 1 / (omega[i] + omega[j] + omega[k])
+                        delta += 1 / (-omega[i] + omega[j] + omega[k])
+                        delta += 1 / (omega[i] + omega[j] - omega[k])
+                        chi[i, j] += (phi_ijk[i, j, k] ** 2) * delta / 2
 
                     else:
                         delta = omega[i] + omega[j] - omega[k]
