@@ -27,7 +27,7 @@ def harmonic(mol, options):
 
     method = options["METHOD"]
 
-    E0, wfn = psi4.frequency(method, molecule=mol, return_wfn=True)
+    E0, wfn = psi4.frequency(method, dertype=options["FD"], molecule=mol, return_wfn=True)
     G0 = wfn.gradient().np
     H0 = wfn.hessian().np
 
