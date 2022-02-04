@@ -355,4 +355,13 @@ def vpt2(mol, options=None):
     for row in rows:
         print("{: >9} {: >20.4f} {: >20.4f} {: >20.4f}".format(*row))
 
-    return omega, anharmonic
+
+    result_dict = {}
+    result_dict["Harmonic Freq"] = omega
+    result_dict["Freq Correction"] = anharmonic
+    result_dict["Anharmonic Freq"] = omega + anharmonic
+    result_dict["Harmonic ZPVE"] = harm["zpve"]
+    result_dict["ZPVE Correction"] = zpve - harm["zpve"]
+    result_dict["Anharmonic ZPVE"] = zpve
+
+    return result_dict

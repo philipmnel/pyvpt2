@@ -30,4 +30,4 @@ options = {'METHOD': 'HF/6-31g*',
            'FD':'HESSIAN',
            'DISP_SIZE': 0.1}
 
-omega, anharmonic = vpt2(mol, options)
+results = vpt2(mol, options)

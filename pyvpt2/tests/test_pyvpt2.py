@@ -42,9 +42,9 @@ def test_vpt2_energy():
     cfour_omega = [1826.8154, 4060.2203, 4177.8273]
     cfour_anharmonic = [-54.0635, -158.2345, -177.9707] 
 
-    omega, anharmonic = pyvpt2.vpt2(mol, options)
-    omega = omega[-3:]
-    anharmonic = anharmonic[-3:]
+    results = pyvpt2.vpt2(mol, options)
+    omega = results["Harmonic Freq"][-3:]
+    anharmonic = results["Freq Correction"][-3:]
 
     assert psi4.compare_values(cfour_omega, omega, 0.1)
     assert psi4.compare_values(cfour_anharmonic, anharmonic, 0.1)
@@ -80,9 +80,9 @@ def test_vpt2_gradient():
     cfour_omega = [1826.8154, 4060.2203, 4177.8273]
     cfour_anharmonic = [-54.0635, -158.2345, -177.9707] 
 
-    omega, anharmonic = pyvpt2.vpt2(mol, options)
-    omega = omega[-3:]
-    anharmonic = anharmonic[-3:]
+    results = pyvpt2.vpt2(mol, options)
+    omega = results["Harmonic Freq"][-3:]
+    anharmonic = results["Freq Correction"][-3:]
 
     assert psi4.compare_values(cfour_omega, omega, 0.1)
     assert psi4.compare_values(cfour_anharmonic, anharmonic, 0.1)
@@ -118,9 +118,9 @@ def test_vpt2_hessian():
     cfour_omega = [1826.8154, 4060.2203, 4177.8273]
     cfour_anharmonic = [-54.0635, -158.2345, -177.9707] 
 
-    omega, anharmonic = pyvpt2.vpt2(mol, options)
-    omega = omega[-3:]
-    anharmonic = anharmonic[-3:]
+    results = pyvpt2.vpt2(mol, options)
+    omega = results["Harmonic Freq"][-3:]
+    anharmonic = results["Freq Correction"][-3:]
 
     assert psi4.compare_values(cfour_omega, omega, 0.1)
     assert psi4.compare_values(cfour_anharmonic, anharmonic, 0.1)
