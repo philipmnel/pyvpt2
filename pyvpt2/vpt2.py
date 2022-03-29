@@ -133,7 +133,7 @@ def vpt2(mol, options=None):
     if "FERMI_OMEGA_THRESH" not in options:
         options["FERMI_OMEGA_THRESH"] = 200
     if "FERMI_K_THRESH" not in options:
-        options["FERMI_K_THRESH"] = 0.01
+        options["FERMI_K_THRESH"] = 1
 
     mol.move_to_com()
     mol.fix_com(True)
@@ -365,9 +365,9 @@ def vpt2(mol, options=None):
 
 
     result_dict = {}
-    result_dict["Harmonic Freq"] = omega
-    result_dict["Freq Correction"] = anharmonic
-    result_dict["Anharmonic Freq"] = omega + anharmonic
+    result_dict["Harmonic Freq"] = omega.tolist()
+    result_dict["Freq Correction"] = anharmonic.tolist()
+    result_dict["Anharmonic Freq"] = (omega + anharmonic).tolist()
     result_dict["Harmonic ZPVE"] = harm["zpve"]
     result_dict["ZPVE Correction"] = zpve - harm["zpve"]
     result_dict["Anharmonic ZPVE"] = zpve
