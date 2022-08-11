@@ -33,8 +33,7 @@ jobs:
     - name: Create Environment
       uses: mamba-org/provision-with-micromamba@v11
       with:
-        extra-specs: |
-          python=${{ matrix.cfg.python-version }}
+        extra-specs: python=${{ matrix.python-version }}
           
         environment-name: test
         environment-file: devtools/conda-envs/test_env.yaml
