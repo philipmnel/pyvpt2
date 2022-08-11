@@ -1,10 +1,11 @@
 name: test
 channels:
-
+  - psi4
   - conda-forge
-
-  - defaults
 dependencies:
+  - psi4
+  - qcelemental
+  
     # Base depends
   - python
   - pip
