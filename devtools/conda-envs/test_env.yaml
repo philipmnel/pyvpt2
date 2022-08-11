@@ -5,7 +5,7 @@ channels:
 dependencies:
   - psi4
   - qcelemental
-  - intel-openmp!=2019.5
+  - intel-openmp
   
     # Base depends
   - python
