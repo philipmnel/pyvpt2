@@ -34,7 +34,7 @@ jobs:
       uses: mamba-org/provision-with-micromamba@main
       with:
         extra-specs: python=${{ matrix.python-version }}
-          
+        channels: psi4,conda-forge
         environment-name: test
         environment-file: devtools/conda-envs/test_env.yaml
         
