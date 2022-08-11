@@ -31,14 +31,14 @@ jobs:
         ulimit -a
 
     - name: Create Environment
-      uses: conda-incubator/setup-miniconda@v2
+      uses: mamba-org/provision-with-micromamba@v11
       with:
-        python-version: ${{ matrix.python-version }}
+        extra-specs: |
+          python=${{ matrix.cfg.python-version }}
+          
+        environment-name: test
         environment-file: devtools/conda-envs/test_env.yaml
-
-        channels: conda-forge,defaults
-
-        activate-environment: test
+        
         auto-update-conda: false
         auto-activate-base: false
         show-channel-urls: true
