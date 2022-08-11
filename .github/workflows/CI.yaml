@@ -31,7 +31,7 @@ jobs:
         ulimit -a
 
     - name: Create Environment
-      uses: mamba-org/provision-with-micromamba@v11
+      uses: mamba-org/provision-with-micromamba@main
       with:
         extra-specs: python=${{ matrix.python-version }}
           
