@@ -17,8 +17,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macOS-latest, ubuntu-latest, windows-latest]
-        python-version: [3.7, 3.8, 3.9, 3.10]
+        os: [macOS-latest, ubuntu-latest]
+        python-version: [3.8, 3.9, "3.10"]
 
     steps:
     - uses: actions/checkout@v1
@@ -55,7 +55,7 @@ jobs:
       shell: bash -l {0}
 
       run: |
-        pytest -v --cov=pyvpt2 --cov-report=xml --color=yes pyvpt2/tests/
+        pytest -v --cov=pyvpt2 --cov-report=xml --color=yes tests/
 
     - name: CodeCov
       uses: codecov/codecov-action@v1
