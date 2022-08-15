@@ -9,7 +9,7 @@ Package to calculate VPT2 anharmonic corrections.
 
 ### Copyright
 
-Copyright (c) 2021, Philip Nelson
+Copyright (c) 2021-2022, Philip Nelson
 
 
 #### Acknowledgements
