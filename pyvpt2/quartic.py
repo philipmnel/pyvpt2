@@ -1,12 +1,12 @@
+# Library imports:
 import psi4
 import numpy as np
-import qcelemental as qcel
 import itertools
 import sys
 import math
 
-wave_to_hartree = qcel.constants.get("inverse meter-hartree relationship") * 100
-
+# Local imports:
+from .constants import wave_to_hartree
 
 def gen_disp_geom(mol, disp, harm, options):
     """
