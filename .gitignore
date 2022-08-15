@@ -107,3 +107,5 @@ ENV/
 
 # Psi4 timer file
 timer.dat
+
+stdout
