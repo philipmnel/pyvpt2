@@ -1,19 +1,11 @@
+# Library imports:
 import psi4
 import numpy as np
-import qcelemental as qcel
 import itertools
 
+#Local imports:
 from . import quartic
-
-wave_to_kcal = qcel.constants.conversion_factor("wavenumber", "kilocalorie per mol")
-wave_to_kj = qcel.constants.conversion_factor("wavenumber", "kilojoule per mol")
-wave_to_hartree = qcel.constants.get("inverse meter-hartree relationship") * 100
-meter_to_bohr = qcel.constants.get("Bohr radius")
-joule_to_hartree = qcel.constants.get("hartree-joule relationship")
-mdyneA_to_hartreebohr = 100 * (meter_to_bohr ** 2) / (joule_to_hartree)
-h = qcel.constants.get("Planck constant")
-c = qcel.constants.get("speed of light in vacuum") * 100
-kg_to_amu = qcel.constants.get("atomic mass constant")
+from .constants import *
 
 def harmonic(mol, options):
     """
