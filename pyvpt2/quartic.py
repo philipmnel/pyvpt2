@@ -418,6 +418,12 @@ def check_cubic(phi_ijk, harm):
     if no_inconsistency:
         print("No inconsistencies found")
 
+    sym_phi_ijk = np.zeros_like(phi_ijk)
+    for ijk_permutes in itertools.permutations(range(3)):
+        sym_phi_ijk += phi_ijk.transpose(ijk_permutes)
+
+    return sym_phi_ijk / 6
+
 def check_quartic(phi_iijj, harm):
     """
     check_quartic: checks quartic force constants for any numerical inconsistencies;
@@ -441,3 +447,6 @@ def check_quartic(phi_iijj, harm):
 
     if no_inconsistency:
         print("No inconsistencies found")
+
+    phi_iijj = 0.5 * (phi_iijj + phi_iijj.T)
+    return phi_iijj

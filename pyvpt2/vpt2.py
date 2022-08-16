@@ -158,14 +158,14 @@ def vpt2(mol, options=None):
         if abs(phi_ijk[i, j, k]) > 10:
             print(i + 1, j + 1, k + 1, "    ", phi_ijk[i, j, k])
 
-    quartic.check_cubic(phi_ijk, harm)
+    phi_ijk = quartic.check_cubic(phi_ijk, harm)
 
     print("\nQuartic (cm-1):")
     for [i,j] in itertools.product(v_ind, repeat=2):
         if abs(phi_iijj[i, j]) > 10:
             print(i + 1, i + 1, j + 1, j + 1, "    ", phi_iijj[i, j])
 
-    quartic.check_quartic(phi_iijj, harm)
+    phi_iijj = quartic.check_quartic(phi_iijj, harm)
 
     print("\nB Rotational Constants (cm-1)")
     print(B[0], B[1], B[2], sep='    ')
