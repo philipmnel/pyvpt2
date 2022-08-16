@@ -27,6 +27,8 @@ def test_h2o_energy():
     R1    =        0.94731025924472878064
     R2    =        0.94731025924472878064
     A    =      105.5028950965639
+
+    symmetry c2v
     """)
 
     psi4.set_options({'d_convergence': 1e-12,
@@ -71,6 +73,8 @@ def test_h2o_gradient():
     R1    =        0.94731025924472878064
     R2    =        0.94731025924472878064
     A    =      105.5028950965639
+
+    symmetry c2v
     """)
 
     psi4.set_options({'d_convergence': 1e-12,
@@ -115,6 +119,8 @@ def test_h2o_hessian():
     R1    =        0.94731025924472878064
     R2    =        0.94731025924472878064
     A    =      105.5028950965639
+
+    symmetry c2v
     """)
 
     psi4.set_options({'d_convergence': 1e-12,
