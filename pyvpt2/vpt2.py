@@ -1,19 +1,11 @@
+# Library imports:
 import psi4
 import numpy as np
-import qcelemental as qcel
 import itertools
 
+#Local imports:
 from . import quartic
-
-wave_to_kcal = qcel.constants.conversion_factor("wavenumber", "kilocalorie per mol")
-wave_to_kj = qcel.constants.conversion_factor("wavenumber", "kilojoule per mol")
-wave_to_hartree = qcel.constants.get("inverse meter-hartree relationship") * 100
-meter_to_bohr = qcel.constants.get("Bohr radius")
-joule_to_hartree = qcel.constants.get("hartree-joule relationship")
-mdyneA_to_hartreebohr = 100 * (meter_to_bohr ** 2) / (joule_to_hartree)
-h = qcel.constants.get("Planck constant")
-c = qcel.constants.get("speed of light in vacuum") * 100
-kg_to_amu = qcel.constants.get("atomic mass constant")
+from .constants import *
 
 def harmonic(mol, options):
     """
@@ -166,14 +158,14 @@ def vpt2(mol, options=None):
         if abs(phi_ijk[i, j, k]) > 10:
             print(i + 1, j + 1, k + 1, "    ", phi_ijk[i, j, k])
 
-    quartic.check_cubic(phi_ijk, harm)
+    phi_ijk = quartic.check_cubic(phi_ijk, harm)
 
     print("\nQuartic (cm-1):")
     for [i,j] in itertools.product(v_ind, repeat=2):
         if abs(phi_iijj[i, j]) > 10:
             print(i + 1, i + 1, j + 1, j + 1, "    ", phi_iijj[i, j])
 
-    quartic.check_quartic(phi_iijj, harm)
+    phi_iijj = quartic.check_quartic(phi_iijj, harm)
 
     print("\nB Rotational Constants (cm-1)")
     print(B[0], B[1], B[2], sep='    ')

@@ -1,12 +1,12 @@
+# Library imports:
 import psi4
 import numpy as np
-import qcelemental as qcel
 import itertools
 import sys
 import math
 
-wave_to_hartree = qcel.constants.get("inverse meter-hartree relationship") * 100
-
+# Local imports:
+from .constants import wave_to_hartree
 
 def gen_disp_geom(mol, disp, harm, options):
     """
@@ -30,9 +30,13 @@ def gen_disp_geom(mol, disp, harm, options):
     disp_mol = mol.clone()
     disp_mol.set_geometry(psi4.core.Matrix.from_array(disp_geom))
     disp_mol.reinterpret_coordentry(False)
-    disp_mol.reset_point_group('C1')
+
+    parent_group = mol.point_group()
+    disp_group = disp_mol.find_highest_point_group()
+    new_bits = parent_group.bits() & disp_group.bits()
+    new_symm_string = psi4.qcdb.PointGroup.bits_to_full_name(new_bits)
+    disp_mol.reset_point_group(new_symm_string)          
     disp_mol.update_geometry()
-    # disp_mol.reset_point_group(disp_mol.get_full_point_group())
 
     return disp_mol
 
@@ -418,6 +422,12 @@ def check_cubic(phi_ijk, harm):
     if no_inconsistency:
         print("No inconsistencies found")
 
+    sym_phi_ijk = np.zeros_like(phi_ijk)
+    for ijk_permutes in itertools.permutations(range(3)):
+        sym_phi_ijk += phi_ijk.transpose(ijk_permutes)
+
+    return sym_phi_ijk / 6
+
 def check_quartic(phi_iijj, harm):
     """
     check_quartic: checks quartic force constants for any numerical inconsistencies;
@@ -441,3 +451,6 @@ def check_quartic(phi_iijj, harm):
 
     if no_inconsistency:
         print("No inconsistencies found")
+
+    phi_iijj = 0.5 * (phi_iijj + phi_iijj.T)
+    return phi_iijj
