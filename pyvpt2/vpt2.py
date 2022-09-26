@@ -10,7 +10,6 @@ import logging
 #Local imports:
 from . import quartic
 from .constants import *
-from . import logconf
 
 logger = logging.getLogger(__name__)
 
