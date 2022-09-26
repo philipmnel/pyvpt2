@@ -151,7 +151,8 @@ def vpt2(mol, options=None):
     if options.get("RETURN_PLAN", False):
         return plan
     else:
-        plan.compute()
+        with psi4.p4util.hold_options_state():
+            plan.compute()
         harmonic_result = plan.get_results()
 
     plan = vpt2_from_harmonic(harmonic_result, options)
