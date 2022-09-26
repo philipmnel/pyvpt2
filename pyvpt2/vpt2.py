@@ -1,13 +1,21 @@
 # Library imports:
+from statistics import harmonic_mean
 import psi4
 import numpy as np
 import itertools
+from typing import Any, Dict, Iterator, List, Optional, TYPE_CHECKING, Tuple, Union
+from psi4.driver.driver_findif import _findif_schema_to_wfn
+from qcelemental.models import AtomicResult
+import logging
 
 #Local imports:
 from . import quartic
 from .constants import *
+from . import logconf
 
-def harmonic(mol, options):
+logger = logging.getLogger(__name__)
+
+def harmonic(mol: psi4.core.Molecule, options: Dict) -> Dict:
     """
     harmonic: performs harmonic analysis and parses normal modes
 
@@ -18,18 +26,18 @@ def harmonic(mol, options):
     """
 
     method = options["METHOD"]
+    plan = psi4.hessian(method, dertype=options["FD"], molecule=mol, return_plan = True)
+    return plan
 
-    E0, wfn = psi4.frequency(method, dertype=options["FD"], molecule=mol, return_wfn=True)
-    G0 = wfn.gradient().np
-    H0 = wfn.hessian().np
+def process_harmonic(wfn):
 
-    omega = wfn.frequency_analysis["omega"].data
-    modes = wfn.frequency_analysis["x"].data
-    kforce = wfn.frequency_analysis["k"].data
-    trv = wfn.frequency_analysis["TRV"].data
-    q = wfn.frequency_analysis["q"].data
+    frequency_analysis = psi4.vibanal_wfn(wfn)
+    omega = frequency_analysis["omega"].data
+    modes = frequency_analysis["x"].data
+    kforce = frequency_analysis["k"].data
+    trv = frequency_analysis["TRV"].data
+    q = frequency_analysis["q"].data
     n_modes = len(trv)
-
 
     omega = omega.real
     omega_au = omega * wave_to_hartree
@@ -48,9 +56,9 @@ def harmonic(mol, options):
     zpve = np.sum(list(omega[i] for i in v_ind)) / 2
 
     harm = {}
-    harm["E0"] = E0 # Energy
-    harm["G0"] = G0 # Gradient
-    harm["H0"] = H0 # Hessian
+    harm["E0"] = wfn.energy() # Energy
+    harm["G0"] = wfn.gradient().np # Gradient
+    harm["H0"] = wfn.hessian().np # Hessian
     harm["omega"] = omega # Frequencies (cm-1)
     harm["modes"] = modes # Un mass weighted normal modes
     harm["v_ind"] = v_ind # Indices of vibrational modes
@@ -63,7 +71,7 @@ def harmonic(mol, options):
     return harm
 
 
-def coriolis(mol, harm):
+def coriolis(mol: psi4.core.Molecule, q: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """
     coriolis: calculates coriolis coupling constants
 
@@ -74,10 +82,10 @@ def coriolis(mol, harm):
     B: equilibrium rotational constants
     """
 
-    q = harm["q"]
     n_atom = mol.natom()
-
+    # Need to use inertia_tensor() to preserve ordering of axes
     inertiavals, inertiavecs  = np.linalg.eig(mol.inertia_tensor().np)
+    # FIXME: ignoring divide error not working; should find a better way to handle linear mols
     with np.errstate(divide = 'ignore'):
         B = np.where(inertiavals == 0.0, 0.0, h / (8 * np.pi ** 2 * c * inertiavals))
     B /= kg_to_amu * meter_to_bohr ** 2
@@ -132,53 +140,44 @@ def vpt2(mol, options=None):
     mol.fix_orientation(True)
     rotor_type = mol.rotor_type()
 
+    #logconf.init_logging("vpt2_test")
+
     if (rotor_type in ["RT_LINEAR", "RT_ASYMMETRIC_TOP"]) == False:
         print("Error: pyVPT2 can only be run on linear or asymmetric top molecules.")
         print("Rotor type is " + rotor_type)
         return {}
 
-    harm = harmonic(mol, options)
-    n_modes = harm["n_modes"]
-    omega = harm["omega"]
-    v_ind = harm["v_ind"]
+    plan = harmonic(mol, options)
+    if options.get("RETURN_PLAN", False):
+        return plan
+    else:
+        plan.compute()
+        harmonic_result = plan.get_results()
 
-    zeta, B = coriolis(mol, harm)
+    plan = vpt2_from_harmonic(harmonic_result, options)
+    plan.compute()
+    quartic_result = plan.get_results()
+    result_dict = process_vpt2(quartic_result, options)
 
-    print("Harmonic analysis successful. Starting quartic force field calculation.")
+    return result_dict
 
-    if options["FD"] == "ENERGY":
-        phi_ijk, phi_iijj = quartic.force_field_E(mol, harm, options)
-    elif options["FD"] == "GRADIENT":
-        phi_ijk, phi_iijj = quartic.force_field_G(mol, harm, options)
-    elif options["FD"] == "HESSIAN":
-        phi_ijk, phi_iijj = quartic.force_field_H(mol, harm, options)
+def vpt2_from_harmonic(harmonic_result: AtomicResult, options):
 
-    print("\n\nCubic (cm-1):")
-    for [i,j,k] in itertools.product(v_ind, repeat=3):
-        if abs(phi_ijk[i, j, k]) > 10:
-            print(i + 1, j + 1, k + 1, "    ", phi_ijk[i, j, k])
+    wfn = _findif_schema_to_wfn(harmonic_result)
+    harm = process_harmonic(wfn)
+    mol = wfn.molecule()
 
-    phi_ijk = quartic.check_cubic(phi_ijk, harm)
+    method = options.pop("METHOD")
+    kwargs = {"options": options, "harm": harm}
+    plan = quartic.task_planner(method=method, molecule=mol, **kwargs)
+    
+    return plan
 
-    print("\nQuartic (cm-1):")
-    for [i,j] in itertools.product(v_ind, repeat=2):
-        if abs(phi_iijj[i, j]) > 10:
-            print(i + 1, i + 1, j + 1, j + 1, "    ", phi_iijj[i, j])
-
-    phi_iijj = quartic.check_quartic(phi_iijj, harm)
-
-    print("\nB Rotational Constants (cm-1)")
-    print(B[0], B[1], B[2], sep='    ')
-
-    print("\nCoriolis Constants (cm-1):")
-    for [i,j,k] in itertools.product(range(3), v_ind, v_ind):
-        if abs(zeta[i, j, k]) > 1e-5:
-            print(i + 1, j + 1, k + 1, "    ", zeta[i, j, k])
-
+def identify_fermi(omega, phi_ijk, n_modes, v_ind, options):
     # Identify Fermi resonances:
-    fermi1 = np.zeros((n_modes, n_modes), dtype=bool) # 2*ind1 = ind2
-    fermi2 = np.zeros((n_modes, n_modes, n_modes), dtype=bool) # ind1 + ind2 = ind3
-    fermi_chi_list = np.zeros((n_modes, n_modes), dtype=bool) # list of deperturbed chi constants
+    fermi1 = np.zeros((n_modes, n_modes), dtype=int) # 2*ind1 = ind2
+    fermi2 = np.zeros((n_modes, n_modes, n_modes), dtype=int) # ind1 + ind2 = ind3
+    fermi_chi_list = np.zeros((n_modes, n_modes), dtype=int) # list of deperturbed chi constants
     delta_omega_threshold = options["FERMI_OMEGA_THRESH"]
     delta_K_threshold = options["FERMI_K_THRESH"]
 
@@ -210,6 +209,24 @@ def vpt2(mol, options=None):
     if np.sum(fermi_chi_list) == 0:
         print("None detected.")
 
+    return fermi1, fermi2, fermi_chi_list
+
+def process_vpt2(quartic_result: AtomicResult, options):
+
+    mol = psi4.core.Molecule.from_schema(quartic_result.molecule.dict())
+    findifrec = quartic_result.extras["findif_record"]
+    phi_ijk = findifrec["reference"]["phi_ijk"]
+    phi_iijj = findifrec["reference"]["phi_iijj"]
+
+    harm = findifrec["harm"]
+    omega = harm["omega"]
+    v_ind = harm["v_ind"]
+    n_modes = harm["n_modes"]
+
+    zeta, B = coriolis(mol, harm['q'])
+    rotor_type = mol.rotor_type()
+    fermi1, fermi2, fermi_chi_list = identify_fermi(omega, phi_ijk, n_modes, v_ind, options)
+
     chi = np.zeros((n_modes, n_modes))
     chi0 = 0.0
 
@@ -224,17 +241,19 @@ def vpt2(mol, options=None):
 
                 for k in v_ind:
                     if fermi1[i,k]:
-                        chi[i,i] -= (phi_ijk[i, i, k] ** 2 ) / 2 * (1 / (2 * omega[i] + omega[k]) + 4 / omega[k])
-
+                        temp = (phi_ijk[i, i, k] ** 2 ) / 2 
+                        temp *= (1 / (2 * omega[i] + omega[k]) + 4 / omega[k])
+                        chi[i,i] -= temp
                     else:
-                        chi[i, i] -= ((8 * omega[i] ** 2 - 3 * omega[k] ** 2) * phi_ijk[i, i, k] ** 2) / (omega[k] * (4 * omega[i] ** 2 - omega[k] ** 2))
+                        temp = ((8 * omega[i] ** 2 - 3 * omega[k] ** 2) * phi_ijk[i, i, k] ** 2)
+                        temp /= (omega[k] * (4 * omega[i] ** 2 - omega[k] ** 2))
+                        chi[i, i] -=  temp 
 
                 chi[i, i] /= 16
 
             else:
                 chi0 += 3 * omega[i]* phi_ijk[i, j, j] ** 2 / (4 * omega[j] ** 2 - omega[i] ** 2)
                 chi[i, j] = phi_iijj[i, j]
-
                 rot = 0
                 for b_ind in range(0, 3):
                     rot += B[b_ind] * (zeta[b_ind, i, j]) ** 2
@@ -267,17 +286,18 @@ def vpt2(mol, options=None):
                         delta *= omega[i] + omega[j] + omega[k]
                         delta *= omega[i] - omega[j] + omega[k]
                         delta *= omega[i] - omega[j] - omega[k]
-                        chi[i, j] += 2 * omega[k] * (omega[i] ** 2 + omega[j] ** 2 - omega[k] ** 2) * phi_ijk[i, j, k] ** 2 / delta
+                        temp = 2 * omega[k] * (omega[i] ** 2 + omega[j] ** 2 - omega[k] ** 2)
+                        chi[i, j] +=  temp * phi_ijk[i, j, k] ** 2 / delta
 
                     if (j > i) and (k > j):
                         chi0 -=  16 * (omega[i] * omega[j] * omega[k] * phi_ijk[i, j, k] ** 2) / delta
 
                 chi[i, j] /= 4
 
-    for b_ind in range(0,3):
+    for b_ind in range(3):
         if rotor_type == "RT_LINEAR": continue
         zeta_sum = 0
-        for [i,j] in list(itertools.combinations(v_ind,2)):
+        for [i,j] in itertools.combinations(v_ind, 2):
             zeta_sum += (zeta[b_ind, i, j])**2
         chi0 -= 16 * B[b_ind] * (1 + 2*zeta_sum)
 
@@ -315,8 +335,48 @@ def vpt2(mol, options=None):
             elif k == j: continue
             band[i, j] += 0.5 * (chi[i,k] + chi[j,k])
         band[j, i] = band[i, j]
+    
+    result_dict = {}
+    result_dict["Harmonic Freq"] = omega.tolist()
+    result_dict["Freq Correction"] = anharmonic.tolist()
+    result_dict["Anharmonic Freq"] = (omega + anharmonic).tolist()
+    result_dict["Harmonic ZPVE"] = harm["zpve"]
+    result_dict["ZPVE Correction"] = zpve - harm["zpve"]
+    result_dict["Anharmonic ZPVE"] = zpve
+    result_dict["Quartic Schema"] = quartic_result.dict()
 
-    print("\nVPT2 analysis complete...")
+    print_result(result_dict, v_ind)
+
+    return result_dict
+
+def print_result(result_dict: Dict, v_ind):
+
+    omega = result_dict["Harmonic Freq"]
+    anharmonic = result_dict["Anharmonic Freq"]
+    harm_zpve = result_dict["Harmonic ZPVE"]
+    zpve = result_dict["Anharmonic ZPVE"]
+    phi_ijk = result_dict["Quartic Schema"]["extras"]["findif_record"]["reference"]["phi_ijk"]
+    phi_iijj = result_dict["Quartic Schema"]["extras"]["findif_record"]["reference"]["phi_iijj"]
+
+    print("\n\nCubic (cm-1):")
+    for [i,j,k] in itertools.product(v_ind, repeat=3):
+        if abs(phi_ijk[i, j, k]) > 10:
+            print(i + 1, j + 1, k + 1, "    ", phi_ijk[i, j, k])
+
+    print("\nQuartic (cm-1):")
+    for [i,j] in itertools.product(v_ind, repeat=2):
+        if abs(phi_iijj[i, j]) > 10:
+            print(i + 1, i + 1, j + 1, j + 1, "    ", phi_iijj[i, j])
+
+    # print("\nB Rotational Constants (cm-1)")
+    # print(B[0], B[1], B[2], sep='    ')
+
+    #print("\nCoriolis Constants (cm-1):")
+    #for [i,j,k] in itertools.product(range(3), v_ind, v_ind):
+        #if abs(zeta[i, j, k]) > 1e-5:
+            #print(i + 1, j + 1, k + 1, "    ", zeta[i, j, k])
+
+    #print("\nVPT2 analysis complete...")
     print("\nFundamentals (cm-1):")
     header = ["", "Harmonic", "Anharmonic", "Anharmonic"]
     header2 = ["Mode", "Frequency", "Correction", "Frequency"]
@@ -327,41 +387,30 @@ def vpt2(mol, options=None):
         print("{: >8} {: >20.4f} {: >20.4f} {: >20.4f}".format(*row))
 
 
-    print("\nOvertones (cm-1):")
-    header = ["", "", "Harmonic", "Anharmonic", "Anharmonic"]
-    header2 = ["", "Mode", "Frequency", "Correction", "Frequency"]
-    rows = [[2, i+1, 2*omega[i], overtone[i], 2*omega[i] + overtone[i]] for i in v_ind]
-    print("{: >3} {: >4} {: >20} {: >20} {: >20}".format(*header))
-    print("{: >3} {: >4} {: >20} {: >20} {: >20}".format(*header2))
-    for row in rows:
-        print("{: >3} {: >4} {: >20.4f} {: >20.4f} {: >20.4f}".format(*row))
+    #print("\nOvertones (cm-1):")
+    #header = ["", "", "Harmonic", "Anharmonic", "Anharmonic"]
+    #header2 = ["", "Mode", "Frequency", "Correction", "Frequency"]
+    #rows = [[2, i+1, 2*omega[i], overtone[i], 2*omega[i] + overtone[i]] for i in v_ind]
+    #print("{: >3} {: >4} {: >20} {: >20} {: >20}".format(*header))
+    #print("{: >3} {: >4} {: >20} {: >20} {: >20}".format(*header2))
+    #for row in rows:
+        #print("{: >3} {: >4} {: >20.4f} {: >20.4f} {: >20.4f}".format(*row))
 
-    print("\nCombination Bands (cm-1):")
-    header = ["", "" , "Harmonic", "Anharmonic", "Anharmonic"]
-    header2 = ["", "Mode", "Frequency", "Correction", "Frequency"]
-    rows = [[i+1, j+1, omega[i] + omega[j], band[i,j], omega[i] + omega[j] + band[i,j]] for [i, j] in itertools.combinations(v_ind,2)]
-    print("{: >3} {: >4} {: >20} {: >20} {: >20}".format(*header))
-    print("{: >3} {: >4} {: >20} {: >20} {: >20}".format(*header2))
-    for row in rows:
-        print("{: >3} {: >4} {: >20.4f} {: >20.4f} {: >20.4f}".format(*row))
+    #print("\nCombination Bands (cm-1):")
+    #header = ["", "" , "Harmonic", "Anharmonic", "Anharmonic"]
+    #header2 = ["", "Mode", "Frequency", "Correction", "Frequency"]
+    #rows = [[i+1, j+1, omega[i] + omega[j], band[i,j], omega[i] + omega[j] + band[i,j]] for [i, j] in itertools.combinations(v_ind,2)]
+    #print("{: >3} {: >4} {: >20} {: >20} {: >20}".format(*header))
+    #print("{: >3} {: >4} {: >20} {: >20} {: >20}".format(*header2))
+    #for row in rows:
+        #print("{: >3} {: >4} {: >20.4f} {: >20.4f} {: >20.4f}".format(*row))
 
     print("\nZero-Point Vibrational Energy:")
     header = ["", "Harmonic", "Anharmonic", "Anharmonic"]
     header2 = ["", "ZPVE", "Correction", "ZPVE"]
     unit_list = [["cm-1:", 1], ["kcal/mol:", wave_to_kcal], ["kJ/mol:", wave_to_kj]]
-    rows = [[unit_label, factor * harm["zpve"], factor * (zpve - harm["zpve"]), factor * zpve] for [unit_label, factor] in unit_list]
+    rows = [[unit_label, factor * harm_zpve, factor * (zpve - harm_zpve), factor * zpve] for [unit_label, factor] in unit_list]
     print("{: >9} {: >20} {: >20} {: >20}".format(*header))
     print("{: >9} {: >20} {: >20} {: >20}".format(*header2))
     for row in rows:
         print("{: >9} {: >20.4f} {: >20.4f} {: >20.4f}".format(*row))
-
-
-    result_dict = {}
-    result_dict["Harmonic Freq"] = omega.tolist()
-    result_dict["Freq Correction"] = anharmonic.tolist()
-    result_dict["Anharmonic Freq"] = (omega + anharmonic).tolist()
-    result_dict["Harmonic ZPVE"] = harm["zpve"]
-    result_dict["ZPVE Correction"] = zpve - harm["zpve"]
-    result_dict["Anharmonic ZPVE"] = zpve
-
-    return result_dict

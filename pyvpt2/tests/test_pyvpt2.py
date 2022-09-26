@@ -13,6 +13,44 @@ def test_pyvpt2_imported():
     """Sample test, will always pass so long as import statement worked."""
     assert "pyvpt2" in sys.modules
 
+def test_h2o_harmonic():
+
+    mol = psi4.geometry("""
+    nocom
+    noreorient
+
+    O
+    H 1 R1
+    H 1 R2 2 A
+   
+    R1    =        0.94731025924472878064
+    R2    =        0.94731025924472878064
+    A    =      105.5028950965639
+
+    symmetry c2v
+    """)
+
+    psi4.set_options({'d_convergence': 1e-12,
+                'e_convergence': 1e-12,
+                'scf_type': 'direct',
+                'puream': True,
+                'points': 5})
+
+    options = {'METHOD': 'scf/6-31g*',
+            'FD': 'HESSIAN',
+            'RETURN_PLAN': True}
+
+    cfour_omega = [1826.8154, 4060.2203, 4177.8273]
+
+    plan = pyvpt2.vpt2(mol, options)
+    plan.compute()
+    ret = plan.get_results()
+    wfn = psi4.driver.driver_findif._findif_schema_to_wfn(ret)
+    harm = pyvpt2.process_harmonic(wfn)
+
+    omega = harm["omega"][-3:]
+
+    assert psi4.compare_values(cfour_omega, omega, 0.1)
 
 def test_h2o_energy():
     
