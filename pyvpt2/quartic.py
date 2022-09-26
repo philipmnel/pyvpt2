@@ -12,7 +12,6 @@ from psi4.driver.task_base import BaseComputer, AtomicComputer
 from psi4.driver.driver_cbs import CompositeComputer, composite_procedures
 from psi4.driver.task_planner import _expand_cbs_methods
 
-
 # Local imports:
 from .constants import wave_to_hartree
 

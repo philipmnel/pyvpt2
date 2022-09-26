@@ -1,5 +1,4 @@
 # Library imports:
-from statistics import harmonic_mean
 import psi4
 import numpy as np
 import itertools
