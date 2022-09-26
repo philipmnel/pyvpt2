@@ -533,9 +533,10 @@ def task_planner(method: str, molecule: psi4.core.Molecule, **kwargs) -> TaskCom
     driver = "hessian"
     dermode = kwargs["options"]["FD"]
     method = method.lower()
+    basis = keywords.pop("BASIS", "(auto)")
 
     # Expand CBS methods
-    method, basis, cbsmeta = _expand_cbs_methods(method=method, basis=None, driver=driver)
+    method, basis, cbsmeta = _expand_cbs_methods(method=method, basis=basis, driver=driver)
     if method in composite_procedures:
         kwargs.update(cbsmeta)
         kwargs.update({'cbs_metadata': composite_procedures[method](**kwargs)})
