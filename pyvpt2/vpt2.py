@@ -13,7 +13,7 @@ from .constants import *
 
 logger = logging.getLogger(__name__)
 
-def harmonic(mol: psi4.core.Molecule, options: Dict) -> Dict:
+def harmonic(mol: psi4.core.Molecule, **kwargs) -> Dict:
     """
     harmonic: performs harmonic analysis and parses normal modes
 
@@ -23,11 +23,12 @@ def harmonic(mol: psi4.core.Molecule, options: Dict) -> Dict:
     harm: harmonic results dictionary
     """
 
-    method = options["METHOD"]
-    plan = psi4.hessian(method, dertype=options["FD"], molecule=mol, return_plan = True)
+    method = kwargs["METHOD"]
+    dertype = kwargs["FD"]
+    plan = psi4.hessian(method, dertype=dertype, molecule=mol, return_plan = True)
     return plan
 
-def process_harmonic(wfn):
+def process_harmonic(wfn: psi4.core.Wavefunction) -> Dict:
 
     frequency_analysis = psi4.vibanal_wfn(wfn)
     omega = frequency_analysis["omega"].data
@@ -104,7 +105,25 @@ def coriolis(mol: psi4.core.Molecule, q: np.ndarray) -> Tuple[np.ndarray, np.nda
     return zeta, B
 
 
-def vpt2(mol, options=None):
+def process_options_keywords(**kwargs) -> Dict:
+
+    if kwargs is None:
+        kwargs = {}
+
+    kwargs = {k.upper(): v for k, v in sorted(kwargs.items())}
+
+    kwargs.setdefault("DISP_SIZE", 0.05)
+    kwargs.setdefault("METHOD", "SCF")
+    kwargs.setdefault("FD", "HESSIAN")
+    kwargs.setdefault("FERMI", True)
+    kwargs.setdefault("FERMI_OMEGA_THRESH", 200)
+    kwargs.setdefault("FERMI_K_THRESH", 1)
+    kwargs.setdefault("RETURN_PLAN", False)
+
+    return kwargs
+
+
+def vpt2(mol: psi4.core.Molecule, **kwargs) -> Dict:
     """
     vpt2: performs vibrational pertubration theory calculation
 
@@ -115,23 +134,7 @@ def vpt2(mol, options=None):
     anharmonic: vpt2 anharmonic corrections
     """
 
-    if options is None:
-        options = {}
-
-    options = {k.upper(): v for k, v in sorted(options.items())}
-
-    if "DISP_SIZE" not in options:
-        options["DISP_SIZE"] = 0.02
-    if "METHOD" not in options:
-        options["METHOD"] = "SCF"
-    if "FD" not in options:
-        options["FD"] = "HESSIAN"
-    if "FERMI" not in options:
-        options["FERMI"] = True
-    if "FERMI_OMEGA_THRESH" not in options:
-        options["FERMI_OMEGA_THRESH"] = 200
-    if "FERMI_K_THRESH" not in options:
-        options["FERMI_K_THRESH"] = 1
+    kwargs = process_options_keywords(**kwargs)
 
     mol.move_to_com()
     mol.fix_com(True)
@@ -145,42 +148,43 @@ def vpt2(mol, options=None):
         print("Rotor type is " + rotor_type)
         return {}
 
-    plan = harmonic(mol, options)
-    if options.get("RETURN_PLAN", False):
+    plan = harmonic(mol, **kwargs)
+    if kwargs.get("RETURN_PLAN", False):
         return plan
     else:
         with psi4.p4util.hold_options_state():
             plan.compute()
         harmonic_result = plan.get_results()
 
-    plan = vpt2_from_harmonic(harmonic_result, options)
+    plan = vpt2_from_harmonic(harmonic_result, **kwargs)
     plan.compute()
     quartic_result = plan.get_results()
-    result_dict = process_vpt2(quartic_result, options)
+    result_dict = process_vpt2(quartic_result, **kwargs)
 
     return result_dict
 
-def vpt2_from_harmonic(harmonic_result: AtomicResult, options):
+def vpt2_from_harmonic(harmonic_result: AtomicResult, **kwargs) -> quartic.QuarticComputer:
 
+    kwargs = process_options_keywords(**kwargs)
     wfn = _findif_schema_to_wfn(harmonic_result)
     harm = process_harmonic(wfn)
     mol = wfn.molecule()
 
-    method = options.pop("METHOD")
-    kwargs = {"options": options, "harm": harm}
+    method = kwargs.get("METHOD")
+    kwargs = {"options": kwargs, "harm": harm}
     plan = quartic.task_planner(method=method, molecule=mol, **kwargs)
     
     return plan
 
-def identify_fermi(omega, phi_ijk, n_modes, v_ind, options):
+def identify_fermi(omega: np.ndarray, phi_ijk: np.ndarray, n_modes: np.ndarray, v_ind:  np.ndarray, **kwargs):
     # Identify Fermi resonances:
     fermi1 = np.zeros((n_modes, n_modes), dtype=int) # 2*ind1 = ind2
     fermi2 = np.zeros((n_modes, n_modes, n_modes), dtype=int) # ind1 + ind2 = ind3
     fermi_chi_list = np.zeros((n_modes, n_modes), dtype=int) # list of deperturbed chi constants
-    delta_omega_threshold = options["FERMI_OMEGA_THRESH"]
-    delta_K_threshold = options["FERMI_K_THRESH"]
+    delta_omega_threshold = kwargs.get("FERMI_OMEGA_THRESH")
+    delta_K_threshold = kwargs.get("FERMI_K_THRESH")
 
-    if options["FERMI"]:
+    if kwargs.get("FERMI"):
         print("\nIdentifying Fermi resonances... ")
         for [i, j] in itertools.permutations(v_ind, 2):
             d_omega = abs(2*omega[i] - omega[j])
@@ -210,8 +214,9 @@ def identify_fermi(omega, phi_ijk, n_modes, v_ind, options):
 
     return fermi1, fermi2, fermi_chi_list
 
-def process_vpt2(quartic_result: AtomicResult, options):
+def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
 
+    kwargs = process_options_keywords(**kwargs)
     mol = psi4.core.Molecule.from_schema(quartic_result.molecule.dict())
     findifrec = quartic_result.extras["findif_record"]
     phi_ijk = findifrec["reference"]["phi_ijk"]
@@ -224,7 +229,7 @@ def process_vpt2(quartic_result: AtomicResult, options):
 
     zeta, B = coriolis(mol, harm['q'])
     rotor_type = mol.rotor_type()
-    fermi1, fermi2, fermi_chi_list = identify_fermi(omega, phi_ijk, n_modes, v_ind, options)
+    fermi1, fermi2, fermi_chi_list = identify_fermi(omega, phi_ijk, n_modes, v_ind, **kwargs)
 
     chi = np.zeros((n_modes, n_modes))
     chi0 = 0.0
@@ -348,7 +353,7 @@ def process_vpt2(quartic_result: AtomicResult, options):
 
     return result_dict
 
-def print_result(result_dict: Dict, v_ind):
+def print_result(result_dict: Dict, v_ind: np.ndarray):
 
     omega = result_dict["Harmonic Freq"]
     anharmonic = result_dict["Anharmonic Freq"]
