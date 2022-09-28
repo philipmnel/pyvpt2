@@ -35,7 +35,7 @@ def test_h2o_vpt2(driver):
     cfour_harm_zpve = 5032.431
     cfour_zpve_corr = -70.352
 
-    results = pyvpt2.vpt2(mol, options)
+    results = pyvpt2.vpt2(mol, **options)
     omega = results["Harmonic Freq"][-3:]
     anharmonic = results["Freq Correction"][-3:]
     harm_zpve  = results["Harmonic ZPVE"]
