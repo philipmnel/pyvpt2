@@ -5,7 +5,7 @@ import itertools
 import logging
 import copy
 from functools import partial
-from typing import Any, Dict, Iterator, List, Optional, TYPE_CHECKING, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, TYPE_CHECKING, Tuple
 from pydantic import validator
 from qcelemental.models import DriverEnum, AtomicResult
 from psi4.driver.task_base import BaseComputer, AtomicComputer
@@ -20,13 +20,22 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-def check_cubic(phi_ijk: np.ndarray, v_ind: List) -> np.ndarray:
+def check_cubic(phi_ijk: np.ndarray, v_ind: List[int]) -> np.ndarray:
     """
-    check_cubic: checks cubic force constants for any numerical inconsistencies;
+    Checks cubic force constants for any numerical inconsistencies, symmetrizes results, 
     prints results to output file
 
-    phi_ijk: array of cubic force constants
-    harm: harmonic results dictionary
+    Parameters
+    ----------
+    phi_ijk : np.ndarray
+        Array of cubic force constants
+    v_ind : List[int]
+        List of vibrational indices
+
+    Returns
+    -------
+    np.ndarray
+        Symmetrized array of cubic force constants
     """
 
     no_inconsistency = True
@@ -50,11 +59,20 @@ def check_cubic(phi_ijk: np.ndarray, v_ind: List) -> np.ndarray:
 
 def check_quartic(phi_iijj: np.ndarray, v_ind: List) -> np.ndarray:
     """
-    check_quartic: checks quartic force constants for any numerical inconsistencies;
+    Checks quartic force constants for any numerical inconsistencies, symmetrizes results,
     prints results to output file
 
-    phi_iijj: array of quartic force constants
-    harm: harmonic results dictionary
+    Parameters
+    ----------
+    phi_iijj : np.ndarray
+        Array of quartic force constants
+    v_ind : List[int]
+        List of vibrational indices
+
+    Returns
+    -------
+    np.ndarray
+        Symmetrized array of quartic force constants
     """
 
     no_inconsistency = True
@@ -74,6 +92,25 @@ def check_quartic(phi_iijj: np.ndarray, v_ind: List) -> np.ndarray:
     return phi_iijj
 
 def _displace_cart(geom: np.ndarray, modes: np.ndarray, i_m: Iterator[Tuple], disp_size: float) -> Tuple[np.ndarray, str]:
+    """
+    Generates a displaced geometry along specified normal mode coordinates
+
+    Parameters
+    ----------
+    geom : np.ndarray
+        Molecular geometry 
+    modes : np.ndarray
+        Cartesian normal modes (unitless)
+    i_m : Iterator[Tuple]
+        (displacement index, displacement steps)
+    disp_size : float 
+        Displacement size (reduced unitless coordinates)
+    
+    Returns
+    -------
+    np.ndarray
+        Displaced geometry
+    """
     label = []
     disp_geom = np.copy(geom)
     # This for loop and tuple unpacking is why the function can handle
@@ -86,7 +123,23 @@ def _displace_cart(geom: np.ndarray, modes: np.ndarray, i_m: Iterator[Tuple], di
     return disp_geom, label
 
 def _geom_generator(mol: psi4.core.Molecule, data: Dict, mode: int) -> Dict:
+    """
+    Generates list displaced geometries for a given finite difference job.
 
+    Parameters
+    ----------
+    mol : psi4.core.Molecule
+        Input molecule
+    data : Dict
+        Dictionary with finite difference job info
+    mode : int
+        0: energies; 1: gradients; 2: Hessians
+
+    Returns
+    -------
+    Dict
+        Dictionary with list of displacement geometries
+    """
     ref_geom = np.array(mol.geometry())
     v_ind = data["harm"]["v_ind"]
     findifrec = {
@@ -145,7 +198,19 @@ quartic_from_gradients_geometries = partial(_geom_generator, mode = 1)
 quartic_from_hessians_geometries = partial(_geom_generator, mode = 2)
 
 def assemble_quartic_from_energies(findifrec: Dict) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Generate cubic and quartic constants by finite difference of energies.
 
+    Parameters
+    ----------
+    findifrec: Dict
+        Dictionary of displaced calculations
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray]
+        (cubic force constants, quartic force constants)
+    """
     n_modes = findifrec["harm"]["n_modes"]
     E0 = findifrec["harm"]["E0"]
     v_ind = findifrec["harm"]["v_ind"]
@@ -218,6 +283,19 @@ def assemble_quartic_from_energies(findifrec: Dict) -> Tuple[np.ndarray, np.ndar
     return phi_ijk, phi_iijj
 
 def assemble_quartic_from_gradients(findifrec: Dict) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Generate cubic and quartic constants by finite difference of gradients.
+
+    Parameters
+    ----------
+    findifrec: Dict
+        Dictionary of displaced calculations
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray]
+        (cubic force constants, quartic force constants)
+    """
 
     n_modes = findifrec["harm"]["n_modes"]
     grad0 = findifrec["harm"]["G0"]
@@ -298,6 +376,19 @@ def assemble_quartic_from_gradients(findifrec: Dict) -> Tuple[np.ndarray, np.nda
     return phi_ijk, phi_iijj
 
 def assemble_quartic_from_hessians(findifrec: Dict) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Generate cubic and quartic constants by finite difference of Hessians.
+
+    Parameters
+    ----------
+    findifrec: Dict
+        Dictionary of displaced calculations
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray]
+        (cubic force constants, quartic force constants)
+    """
 
     n_modes = findifrec["harm"]["n_modes"]
     hess0 = findifrec["harm"]["H0"]
@@ -524,9 +615,22 @@ class QuarticComputer(BaseComputer):
 
         return quartic_result
 
-TaskComputers = Union[AtomicComputer, CompositeComputer, QuarticComputer]
-def task_planner(method: str, molecule: psi4.core.Molecule, **kwargs) -> TaskComputers:
+def task_planner(method: str, molecule: psi4.core.Molecule, **kwargs) -> QuarticComputer:
+    """
+    Generates computer for finite difference calcutations
 
+    Parameters
+    ----------
+    method : str
+        Quantum chemistry method
+    molecule: psi4.core.Molecule
+        Input molecule
+    
+    Returns
+    -------
+    QuarticComputer
+        Computer for finite difference calculations
+    """
     # keywords are the psi4 option keywords
     keywords = psi4.p4util.prepare_options_for_set_options()
     driver = "hessian"

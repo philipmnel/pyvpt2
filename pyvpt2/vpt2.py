@@ -2,9 +2,12 @@
 import psi4
 import numpy as np
 import itertools
-from typing import Any, Dict, Iterator, List, Optional, TYPE_CHECKING, Tuple, Union
+from typing import Dict, TYPE_CHECKING, Tuple, Union
 from psi4.driver.driver_findif import _findif_schema_to_wfn
 from qcelemental.models import AtomicResult
+from psi4.driver.task_base import AtomicComputer
+from psi4.driver.driver_cbs import CompositeComputer
+from psi4.driver.driver_findif import FiniteDifferenceComputer
 import logging
 
 #Local imports:
@@ -13,23 +16,42 @@ from .constants import *
 
 logger = logging.getLogger(__name__)
 
-def harmonic(mol: psi4.core.Molecule, **kwargs) -> Dict:
+TaskComputers = Union[AtomicComputer, CompositeComputer, FiniteDifferenceComputer]
+def harmonic(mol: psi4.core.Molecule, **kwargs) -> TaskComputers:
     """
-    harmonic: performs harmonic analysis and parses normal modes
+    Generates plan for harmonic reference calculation
 
-    mol: psi4 molecule object
-    options: program options dictionary
-
-    harm: harmonic results dictionary
+    Parameters
+    ----------
+    mol : psi4.core.Molecule 
+        Input molecule
+    
+    Returns
+    -------
+    TaskComputers 
+        Computer for reference harmonic calculation 
     """
 
     method = kwargs["METHOD"]
     dertype = kwargs["FD"]
-    plan = psi4.hessian(method, dertype=dertype, molecule=mol, return_plan = True)
+    plan = psi4.hessian(method, dertype=dertype, molecule=mol, return_plan=True)
     return plan
 
 def process_harmonic(wfn: psi4.core.Wavefunction) -> Dict:
+    """
+    Parse harmonic reference wavefunction
 
+    Parameters
+    ----------
+    wfn : psi4.core.Wavefunction
+        Wavefunction from Hessian calculation
+
+    Returns
+    -------
+    Dict
+        Dictionary of reference values from harmonic calculation
+
+    """
     frequency_analysis = psi4.vibanal_wfn(wfn)
     omega = frequency_analysis["omega"].data
     modes = frequency_analysis["x"].data
@@ -72,13 +94,21 @@ def process_harmonic(wfn: psi4.core.Wavefunction) -> Dict:
 
 def coriolis(mol: psi4.core.Molecule, q: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """
-    coriolis: calculates coriolis coupling constants
+    Calculates coriolis coupling constants
 
-    mol: psi4 molecule object
-    harm: harmonic results dictionary
+    Parameters
+    ----------
+    mol : psi4.core.Molecule
+        Input molecule
+    q : np.ndarray
+        Mass-weighted normal modes
 
-    zeta: coriolis coupling constants
-    B: equilibrium rotational constants
+    Returns
+    -------
+    np.ndarray
+        Coriolis coupling constants
+    np.ndarray
+        Equilibrium rotational constants
     """
 
     n_atom = mol.natom()
@@ -106,6 +136,9 @@ def coriolis(mol: psi4.core.Molecule, q: np.ndarray) -> Tuple[np.ndarray, np.nda
 
 
 def process_options_keywords(**kwargs) -> Dict:
+    """
+    Process input keywords
+    """
 
     if kwargs is None:
         kwargs = {}
@@ -141,8 +174,6 @@ def vpt2(mol: psi4.core.Molecule, **kwargs) -> Dict:
     mol.fix_orientation(True)
     rotor_type = mol.rotor_type()
 
-    #logconf.init_logging("vpt2_test")
-
     if (rotor_type in ["RT_LINEAR", "RT_ASYMMETRIC_TOP"]) == False:
         print("Error: pyVPT2 can only be run on linear or asymmetric top molecules.")
         print("Rotor type is " + rotor_type)
@@ -164,7 +195,19 @@ def vpt2(mol: psi4.core.Molecule, **kwargs) -> Dict:
     return result_dict
 
 def vpt2_from_harmonic(harmonic_result: AtomicResult, **kwargs) -> quartic.QuarticComputer:
+    """
+    Peforms VPT2 calculation starting from harmonic results
 
+    Parameters
+    ----------
+    harmonic_result : AtomicResult
+        Result from reference hessian calculation
+
+    Returns
+    -------
+    QuarticComputer
+        Computer for quartic finite difference calculation
+    """
     kwargs = process_options_keywords(**kwargs)
     wfn = _findif_schema_to_wfn(harmonic_result)
     harm = process_harmonic(wfn)
@@ -215,7 +258,19 @@ def identify_fermi(omega: np.ndarray, phi_ijk: np.ndarray, n_modes: np.ndarray, 
     return fermi1, fermi2, fermi_chi_list
 
 def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
+    """
+    Calculate VPT2 results from quartic forces
 
+    Parameters
+    ----------
+    quartic_result : Atomic Results
+        Results from quartic finite difference calculation
+    
+    Returns
+    -------
+    Dict
+        Results dictionary for VPT2 caclutation
+    """
     kwargs = process_options_keywords(**kwargs)
     mol = psi4.core.Molecule.from_schema(quartic_result.molecule.dict())
     findifrec = quartic_result.extras["findif_record"]
@@ -354,7 +409,9 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
     return result_dict
 
 def print_result(result_dict: Dict, v_ind: np.ndarray):
-
+    """
+    Prints VPT2 results
+    """
     omega = result_dict["Harmonic Freq"]
     anharmonic = result_dict["Anharmonic Freq"]
     harm_zpve = result_dict["Harmonic ZPVE"]
