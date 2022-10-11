@@ -3,7 +3,7 @@ import pyvpt2
 import pytest
 
 @pytest.mark.parametrize("driver", ["ENERGY", "GRADIENT", "HESSIAN"])
-def test_h2o_vpt2(driver):
+def test_h2o_cbs_vpt2(driver):
     
     mol = psi4.geometry("""
     nocom
