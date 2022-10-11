@@ -10,5 +10,7 @@ __version__ = versions['version']
 __git_revision__ = versions['full-revisionid']
 del get_versions, versions
 
-import logging
-logger = logging.getLogger(__name__)
+# Import Psi4 logger
+from psi4 import logger
+vpt2_log = logger.getChild("pyvpt2")
+vpt2_log.propagate = True

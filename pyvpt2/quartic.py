@@ -577,6 +577,8 @@ class QuarticComputer(BaseComputer):
                 if 'CURRENT GRADIENT' in task.extras['qcvars']:
                     displacement['gradient'] = task.extras['qcvars']['CURRENT GRADIENT']
 
+            displacement['provenance'] = task.provenance
+
         # apply finite difference formulas and load derivatives into findifrec[reference]
         if self.metameta['mode'] == 0:
             phi_ijk, phi_iijj = assemble_quartic_from_energies(self.findifrec)
