@@ -6,6 +6,7 @@ channels:
 dependencies:
   - psi4
   - qcfractal
+  - qcportal
   - qcelemental
   - intel-openmp
   
