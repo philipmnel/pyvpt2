@@ -406,6 +406,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
     result_dict["Quartic Schema"] = quartic_result.dict()
 
     print_result(result_dict, v_ind)
+    result_dict.pop("Quartic Schema") #TODO: this won't drop to JSON :(
 
     return result_dict
 
@@ -414,7 +415,7 @@ def print_result(result_dict: Dict, v_ind: np.ndarray):
     Prints VPT2 results
     """
     omega = result_dict["Harmonic Freq"]
-    anharmonic = result_dict["Anharmonic Freq"]
+    anharmonic = result_dict["Freq Correction"]
     harm_zpve = result_dict["Harmonic ZPVE"]
     zpve = result_dict["Anharmonic ZPVE"]
     phi_ijk = result_dict["Quartic Schema"]["extras"]["findif_record"]["reference"]["phi_ijk"]
