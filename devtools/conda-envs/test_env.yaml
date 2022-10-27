@@ -1,6 +1,6 @@
 name: test
 channels:
-  - psi4
+  - psi4/label/dev
   - defaults
   - conda-forge
 dependencies:
