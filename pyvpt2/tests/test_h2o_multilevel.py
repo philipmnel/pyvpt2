@@ -42,7 +42,7 @@ def test_h2o_multi_vpt2(driver):
     harm_zpve  = results["Harmonic ZPVE"]
     zpve_corr = results["ZPVE Correction"]
 
-    assert psi4.compare_values(ref_omega, omega, 0.2)
-    assert psi4.compare_values(ref_anharmonic, anharmonic, 0.2)
-    assert psi4.compare_values(ref_harm_zpve, harm_zpve, 0.2)
-    assert psi4.compare_values(ref_zpve_corr, zpve_corr, 0.2)
+    assert psi4.compare_values(ref_omega, omega, 0.5)
+    assert psi4.compare_values(ref_anharmonic, anharmonic, 0.5)
+    assert psi4.compare_values(ref_harm_zpve, harm_zpve, 0.5)
+    assert psi4.compare_values(ref_zpve_corr, zpve_corr, 0.5)
