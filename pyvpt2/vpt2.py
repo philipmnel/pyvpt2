@@ -147,6 +147,7 @@ def process_options_keywords(**kwargs) -> Dict:
 
     kwargs.setdefault("DISP_SIZE", 0.05)
     kwargs.setdefault("METHOD", "SCF")
+    kwargs.setdefault("METHOD_2", None)
     kwargs.setdefault("FD", "HESSIAN")
     kwargs.setdefault("FERMI", True)
     kwargs.setdefault("FERMI_OMEGA_THRESH", 200)
@@ -213,7 +214,7 @@ def vpt2_from_harmonic(harmonic_result: AtomicResult, **kwargs) -> quartic.Quart
     harm = process_harmonic(wfn)
     mol = wfn.molecule()
 
-    method = kwargs.get("METHOD")
+    method = kwargs.get("METHOD2", kwargs.get("METHOD")) # If no method2, then method (default)
     kwargs = {"options": kwargs, "harm": harm}
     plan = quartic.task_planner(method=method, molecule=mol, **kwargs)
     
@@ -405,6 +406,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
     result_dict["Quartic Schema"] = quartic_result.dict()
 
     print_result(result_dict, v_ind)
+    result_dict.pop("Quartic Schema") #TODO: this won't drop to JSON :(
 
     return result_dict
 
@@ -413,7 +415,7 @@ def print_result(result_dict: Dict, v_ind: np.ndarray):
     Prints VPT2 results
     """
     omega = result_dict["Harmonic Freq"]
-    anharmonic = result_dict["Anharmonic Freq"]
+    anharmonic = result_dict["Freq Correction"]
     harm_zpve = result_dict["Harmonic ZPVE"]
     zpve = result_dict["Anharmonic ZPVE"]
     phi_ijk = result_dict["Quartic Schema"]["extras"]["findif_record"]["reference"]["phi_ijk"]

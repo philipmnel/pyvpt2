@@ -191,6 +191,11 @@ def _geom_generator(mol: psi4.core.Molecule, data: Dict, mode: int) -> Dict:
             for val in disps.get("disp3"):
                 append_geoms((index1, index2, index3), val)
 
+    #  reference geometry only if we're doing multi-level calc
+    if data["options"].get("METHOD2", False):
+        findifrec["reference"]["geometry"] = ref_geom
+        findifrec["reference"]["do_reference"] = True
+
     return findifrec
 
 quartic_from_energies_geometries = partial(_geom_generator, mode = 0)
@@ -212,7 +217,7 @@ def assemble_quartic_from_energies(findifrec: Dict) -> Tuple[np.ndarray, np.ndar
         (cubic force constants, quartic force constants)
     """
     n_modes = findifrec["harm"]["n_modes"]
-    E0 = findifrec["harm"]["E0"]
+    E0 = findifrec["reference"].get("energy", findifrec["harm"]["E0"])
     v_ind = findifrec["harm"]["v_ind"]
     disp_size = findifrec["disp_size"]
     displacements = findifrec["displacements"]
@@ -298,7 +303,7 @@ def assemble_quartic_from_gradients(findifrec: Dict) -> Tuple[np.ndarray, np.nda
     """
 
     n_modes = findifrec["harm"]["n_modes"]
-    grad0 = findifrec["harm"]["G0"]
+    grad0 = findifrec["reference"].get("gradient", findifrec["harm"]["G0"])
     q = findifrec["harm"]["modes"]
     gamma = findifrec["harm"]["gamma"]
     v_ind = findifrec["harm"]["v_ind"]
@@ -391,7 +396,7 @@ def assemble_quartic_from_hessians(findifrec: Dict) -> Tuple[np.ndarray, np.ndar
     """
 
     n_modes = findifrec["harm"]["n_modes"]
-    hess0 = findifrec["harm"]["H0"]
+    hess0 = findifrec["reference"].get("hessian", findifrec["harm"]["H0"])
     q = findifrec["harm"]["modes"]
     gamma = findifrec["harm"]["gamma"]
     v_ind = findifrec["harm"]["v_ind"]
@@ -504,6 +509,19 @@ class QuarticComputer(BaseComputer):
         info = f""" {ndisp} displacements needed ...\n"""
         logger.debug(info)
 
+        if self.findifrec["reference"].get("do_reference", False):
+            packet = {
+                "molecule": self.molecule,
+                "driver": self.metameta['proxy_driver'],
+                "method": self.method,
+                "basis": data["basis"],
+                "keywords": data["keywords"] or {},
+            }
+            if 'cbs_metadata' in data:
+                packet['cbs_metadata'] = data['cbs_metadata']
+
+            self.task_list["reference"] = self.computer(**packet)
+
         parent_group = self.molecule.point_group()
         for label, displacement in self.findifrec["displacements"].items():
             clone = self.molecule.clone()
@@ -558,6 +576,25 @@ class QuarticComputer(BaseComputer):
         """Return results as FiniteDifference-flavored QCSchema."""
 
         results_list = {k: v.get_results(client=client) for k, v in self.task_list.items()}
+
+        if self.findifrec["reference"].get("do_reference", False):
+            reference = self.findifrec["reference"]
+            task = results_list["reference"]
+            response = task.return_result
+            reference["module"] = getattr(task.provenance, "module", None)
+
+            if task.driver == 'energy':
+                reference['energy'] = response
+
+            elif task.driver == 'gradient':
+                reference['gradient'] = response
+                reference['energy'] = task.extras['qcvars']['CURRENT ENERGY']
+
+            elif task.driver == 'hessian':
+                reference['hessian'] = response
+                reference['energy'] = task.extras['qcvars']['CURRENT ENERGY']
+                if 'CURRENT GRADIENT' in task.extras['qcvars']:
+                    reference['gradient'] = task.extras['qcvars']['CURRENT GRADIENT']
 
         # load AtomicComputer results into findifrec[displacements]
         for label, displacement in self.findifrec["displacements"].items():
