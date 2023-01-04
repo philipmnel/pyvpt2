@@ -4,7 +4,7 @@ channels:
   - defaults
   - conda-forge
 dependencies:
-  - psi4
+  - psi4=1.6.1
   - qcfractal
   - qcportal
   - qcelemental
