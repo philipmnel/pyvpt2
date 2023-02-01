@@ -10,7 +10,7 @@ from pydantic import validator
 from qcelemental.models import DriverEnum, AtomicResult
 from psi4.driver.task_base import BaseComputer, AtomicComputer
 from psi4.driver.driver_cbs import CompositeComputer, composite_procedures
-from psi4.driver.task_planner import _expand_cbs_methods
+from psi4.driver.task_planner import expand_cbs_methods
 
 # Local imports:
 from .constants import wave_to_hartree
@@ -678,7 +678,7 @@ def task_planner(method: str, molecule: psi4.core.Molecule, **kwargs) -> Quartic
     basis = keywords.pop("BASIS", "(auto)")
 
     # Expand CBS methods
-    method, basis, cbsmeta = _expand_cbs_methods(method=method, basis=basis, driver=driver)
+    method, basis, cbsmeta = expand_cbs_methods(method=method, basis=basis, driver=driver)
     if method in composite_procedures:
         kwargs.update(cbsmeta)
         kwargs.update({'cbs_metadata': composite_procedures[method](**kwargs)})

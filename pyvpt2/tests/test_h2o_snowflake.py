@@ -2,8 +2,14 @@ import psi4
 import pyvpt2
 import pytest
 import time
-from qcfractal import FractalSnowflakeHandler
 
+no_qcfractal = False
+try:
+    from qcfractal import FractalSnowflakeHandler
+except:
+    no_qcfractal = True
+
+@pytest.mark.skipif(no_qcfractal, reason="QCFractal not installed")
 @pytest.mark.parametrize("driver", ["ENERGY", "GRADIENT"]) #HESSIAN harmonics currently broken
 def test_h2o_snowflake_vpt2(driver):
     
