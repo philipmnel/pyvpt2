@@ -32,9 +32,9 @@ def test_h2co_vpt2():
             'FERMI': True}
 
     ref_omega = [1335.4895, 1382.7834, 1679.7417, 2031.0176, 3157.7172, 3230.2677]
-    ref_anharmonic = [-17.4496, -13.0677, -27.0277, -25.5870, -142.8210, -180.0593] 
-    ref_harm_zpve = 6408.506
-    ref_zpve_corr = -76.325
+    ref_anharmonic = [-17.4496, -18.9212, -33.1555, -25.5869, -142.8295, -184.5589]
+    ref_harm_zpve = 6408.5086
+    ref_zpve_corr = -77.2184
 
     results = pyvpt2.vpt2(mol, **options)
     omega = results["Harmonic Freq"][-6:]

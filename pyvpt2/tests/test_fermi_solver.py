@@ -39,3 +39,9 @@ def test_fermi_solver():
 
     for state in state_list.keys():
         assert compare_values(ref[state], state_list[state], 0.1)
+
+def test_fermi_solver_empty():
+    
+        fermi_list = []
+        state_list = fermi_solver(fermi_list)
+        assert len(state_list) == 0

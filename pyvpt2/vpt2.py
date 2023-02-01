@@ -12,6 +12,7 @@ import logging
 
 #Local imports:
 from . import quartic
+from .fermi_solver import fermi_solver
 from .constants import *
 
 logger = logging.getLogger(__name__)
@@ -221,12 +222,30 @@ def vpt2_from_harmonic(harmonic_result: AtomicResult, **kwargs) -> quartic.Quart
     return plan
 
 def identify_fermi(omega: np.ndarray, phi_ijk: np.ndarray, n_modes: np.ndarray, v_ind:  np.ndarray, **kwargs):
+    """
+    Identify Fermi resonances
+
+    Parameters
+    ----------
+    omega : np.ndarray
+    phi_ijk : np.ndarray
+    n_modes : np.ndarray
+    v_ind : np.ndarray
+    **kwargs : Dict
+
+    Returns
+    -------
+    fermi1 : np.ndarray
+    fermi2 : np.ndarray
+    fermi_chi_list : np.ndarray
+    """
     # Identify Fermi resonances:
     fermi1 = np.zeros((n_modes, n_modes), dtype=int) # 2*ind1 = ind2
     fermi2 = np.zeros((n_modes, n_modes, n_modes), dtype=int) # ind1 + ind2 = ind3
     fermi_chi_list = np.zeros((n_modes, n_modes), dtype=int) # list of deperturbed chi constants
     delta_omega_threshold = kwargs.get("FERMI_OMEGA_THRESH")
     delta_K_threshold = kwargs.get("FERMI_K_THRESH")
+    fermi_list = []
 
     if kwargs.get("FERMI"):
         print("\nIdentifying Fermi resonances... ")
@@ -235,6 +254,7 @@ def identify_fermi(omega: np.ndarray, phi_ijk: np.ndarray, n_modes: np.ndarray, 
             if d_omega <=  delta_omega_threshold:
                 d_K = phi_ijk[i,i,j]**4 / (256*d_omega**3)
                 if d_K >= delta_K_threshold:
+                    fermi_list.append((j, (i,i)))
                     fermi1[i,j] = True
                     fermi2[i,i,j] = True
                     fermi_chi_list[i,i] = True
@@ -246,6 +266,7 @@ def identify_fermi(omega: np.ndarray, phi_ijk: np.ndarray, n_modes: np.ndarray, 
             if d_omega <= delta_omega_threshold:
                 d_K = phi_ijk[i,j,k]**4 / (64* d_omega**3)
                 if d_K >= delta_K_threshold:
+                    fermi_list.append((k, (i,j)))
                     fermi2[i,j,k] = True
                     fermi_chi_list[i,j] = True
                     fermi_chi_list[i,k] = True
@@ -323,34 +344,67 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
                 for k in v_ind:
                     chi[i, j] -= (phi_ijk[i, i, k] * phi_ijk[j, j, k]) / omega[k]
 
+                    #  temp_ij term appears in chi_ij
+                    #  temp_0 term appears in chi_0                  
+
+
                     if fermi2[i, j, k]:
-                        delta = 1 / (omega[i] + omega[j] + omega[k])
-                        delta += 1 / (-omega[i] + omega[j] + omega[k])
-                        delta += 1 / (omega[i] - omega[j] + omega[k])
-                        chi[i, j] += (phi_ijk[i, j, k] ** 2) * delta / 2
+                        # i + j = k
+                        delta_ij = 1 / (omega[i] + omega[j] + omega[k])
+                        #delta_ij -= 1 / (omega[i] + omega[j] - omega[k]) deperturbed
+                        delta_ij += 1 / (-omega[i] + omega[j] + omega[k])
+                        delta_ij += 1 / (omega[i] - omega[j] + omega[k])
+                        delta_ij /= -2
+                        #chi[i, j] -= (phi_ijk[i, j, k] ** 2) * delta / 2
+
+                        delta_0 = 1 / (omega[i] + omega[j] + omega[k])
+                        #delta_0 -= 1 / (omega[i] + omega[j] - omega[k]) deperturbed
+                        delta_0 -= 1 / (omega[i] - omega[j] + omega[k])
+                        delta_0 -= 1 / (-omega[i] + omega[j] + omega[k])
+                        #chi0 += 2 * phi_ijk[i,j,k]**2  * delta_0
 
                     elif fermi2[j, k, i]:
-                        delta = 1 / (omega[i] + omega[j] + omega[k])
-                        delta += 1 / (omega[i] + omega[j] - omega[k])
-                        delta += 1 / (omega[i] - omega[j] + omega[k])
-                        chi[i, j] += (phi_ijk[i, j, k] ** 2) * delta / 2
+                        # j + k = i
+                        delta_ij = 1 / (omega[i] + omega[j] + omega[k])
+                        delta_ij -= 1 / (omega[i] + omega[j] - omega[k])
+                        #delta_ij += 1 / (-omega[i] + omega[j] + omega[k]) deperturbed
+                        delta_ij += 1 / (omega[i] - omega[j] + omega[k])
+                        delta_ij /= -2
+                        #chi[i, j] -= (phi_ijk[i, j, k] ** 2) * delta / 2
+
+                        delta_0 = 1 / (omega[i] + omega[j] + omega[k])
+                        delta_0 -= 1 / (omega[i] + omega[j] - omega[k])
+                        delta_0 -= 1 / (omega[i] - omega[j] + omega[k])
+                        #delta_0 -= 1 / (-omega[i] + omega[j] + omega[k]) deperturbed
 
                     elif fermi2[k, i, j]:
-                        delta = 1 / (omega[i] + omega[j] + omega[k])
-                        delta += 1 / (-omega[i] + omega[j] + omega[k])
-                        delta += 1 / (omega[i] + omega[j] - omega[k])
-                        chi[i, j] += (phi_ijk[i, j, k] ** 2) * delta / 2
+                        # k + i = j
+                        delta_ij = 1 / (omega[i] + omega[j] + omega[k])
+                        delta_ij -= 1 / (omega[i] + omega[j] - omega[k])
+                        delta_ij += 1 / (-omega[i] + omega[j] + omega[k])
+                        #delta_ij += 1 / (omega[i] - omega[j] + omega[k]) deperturbed
+                        delta_ij /= -2
+                        #chi[i, j] -= (phi_ijk[i, j, k] ** 2) * delta / 2
+
+                        delta_0 = 1 / (omega[i] + omega[j] + omega[k])
+                        delta_0 -= 1 / (omega[i] + omega[j] - omega[k])
+                        #delta_0 -= 1 / (omega[i] - omega[j] + omega[k]) deperturbed
+                        delta_0 -= 1 / (-omega[i] + omega[j] + omega[k])
 
                     else:
                         delta = omega[i] + omega[j] - omega[k]
                         delta *= omega[i] + omega[j] + omega[k]
                         delta *= omega[i] - omega[j] + omega[k]
                         delta *= omega[i] - omega[j] - omega[k]
-                        temp = 2 * omega[k] * (omega[i] ** 2 + omega[j] ** 2 - omega[k] ** 2)
-                        chi[i, j] +=  temp * phi_ijk[i, j, k] ** 2 / delta
+                        delta_ij = 2 * omega[k] * (omega[i] ** 2 + omega[j] ** 2 - omega[k] ** 2) / delta
+                        delta_0 = -8 * (omega[i] * omega[j] * omega[k]) / delta
+                        #chi[i, j] +=  temp * phi_ijk[i, j, k] ** 2 / delta
+
+                    chi[i,j] += phi_ijk[i,j,k]**2 * delta_ij
 
                     if (j > i) and (k > j):
-                        chi0 -=  16 * (omega[i] * omega[j] * omega[k] * phi_ijk[i, j, k] ** 2) / delta
+                        #chi0 -=  16 * (omega[i] * omega[j] * omega[k] * phi_ijk[i, j, k] ** 2) / delta
+                        chi0 +=  2 * phi_ijk[i, j, k] ** 2 * delta_0
 
                 chi[i, j] /= 4
 
@@ -380,8 +434,8 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
     band = np.zeros((n_modes, n_modes))
 
     for i in v_ind:
-        anharmonic[i] = 2 * chi[i, i]
-        overtone[i] = 6 * chi[i,i]
+        anharmonic[i] = omega[i] + 2 * chi[i, i]
+        overtone[i] = 2*omega[i] + 6 * chi[i,i]
 
         for j in v_ind:
             if j == i: continue
@@ -389,37 +443,92 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
             overtone[i] += chi[i, j]
 
     for [i, j] in itertools.combinations(v_ind, 2):
-        band[i, j] = 2 * chi[i, i] + 2 * chi[j, j] + 2 * chi[i, j]
+        band[i, j] = omega[i] + omega[j] + 2 * chi[i, i] + 2 * chi[j, j] + 2 * chi[i, j]
         for k in v_ind:
             if k == i: continue
             elif k == j: continue
             band[i, j] += 0.5 * (chi[i,k] + chi[j,k])
         band[j, i] = band[i, j]
+
+    #if kwargs["FERMI"]:
+        #fermi_nu, fermi_ind = process_fermi_solver(fermi1, fermi2, v_ind, anharmonic, overtone, band, phi_ijk)
+        #deperturbed = anharmonic.copy()
+        #for ind in fermi_ind:
+            #anharmonic[ind] = fermi_nu[ind]
     
     result_dict = {}
     result_dict["Harmonic Freq"] = omega.tolist()
-    result_dict["Freq Correction"] = anharmonic.tolist()
-    result_dict["Anharmonic Freq"] = (omega + anharmonic).tolist()
+    result_dict["Freq Correction"] = (anharmonic - omega).tolist()
+    result_dict["Anharmonic Freq"] = anharmonic.tolist()
     result_dict["Harmonic ZPVE"] = harm["zpve"]
     result_dict["ZPVE Correction"] = zpve - harm["zpve"]
     result_dict["Anharmonic ZPVE"] = zpve
-    result_dict["Quartic Schema"] = quartic_result.dict()
+    result_dict["Quartic Schema"] = quartic_result
 
     print_result(result_dict, v_ind)
-    result_dict.pop("Quartic Schema") #TODO: this won't drop to JSON :(
+    result_dict["Quartic Schema"] = quartic_result.dict(encoding="json")
 
     return result_dict
+
+def process_fermi_solver(fermi1, fermi2, v_ind, nu, overtone, band, phi_ijk):
+    """
+    Process deperturbed results into fermi solver
+
+    Parameters
+    ----------
+    fermi1 : np.ndarray
+    fermi2 : np.ndarray
+    v_ind : list    
+    nu : np.ndarray
+    overtone : np.ndarray
+    band : np.ndarray
+    phi_ijk : np.ndarray
+
+    Returns
+    -------
+    nu : np.ndarray
+
+    """    
+
+    fermi_list = []
+    # process fermi1 resonances
+    for [i, j] in itertools.permutations(v_ind, 2):
+        if fermi1[i, j]:
+            interaction = {"left": {"state": (i,), "nu": nu[i]}}
+            interaction.update({"right": {"state": (j,j), "nu": overtone[j]}})
+            interaction.update({"phi": phi_ijk[i, j, j], "type": 1})
+            fermi_list.append(interaction)
+
+    # process fermi2 resonances
+    for [i, j, k] in itertools.permutations(v_ind, 3):
+        if fermi2[k, i, j]:
+            interaction = {"left": {"state": (i,), "nu": nu[i]}}
+            interaction.update({"right": {"state": (j,k), "nu": band[j,k]}})
+            interaction.update({"phi": phi_ijk[i, j, k], "type": 2})
+            fermi_list.append(interaction)
+
+    state_list = fermi_solver(fermi_list)
+
+    updated_indices = []
+    for key, value in state_list.items():
+        if len(key) == 1:
+            # update nu vals
+            nu[key[0]] = value
+            updated_indices.append(key[0])
+
+    return nu, updated_indices
 
 def print_result(result_dict: Dict, v_ind: np.ndarray):
     """
     Prints VPT2 results
     """
+
     omega = result_dict["Harmonic Freq"]
     anharmonic = result_dict["Freq Correction"]
     harm_zpve = result_dict["Harmonic ZPVE"]
     zpve = result_dict["Anharmonic ZPVE"]
-    phi_ijk = result_dict["Quartic Schema"]["extras"]["findif_record"]["reference"]["phi_ijk"]
-    phi_iijj = result_dict["Quartic Schema"]["extras"]["findif_record"]["reference"]["phi_iijj"]
+    phi_ijk = result_dict["Quartic Schema"].dict()["extras"]["phi_ijk"]
+    phi_iijj = result_dict["Quartic Schema"].dict()["extras"]["phi_iijj"]
 
     print("\n\nCubic (cm-1):")
     for [i,j,k] in itertools.product(v_ind, repeat=3):
