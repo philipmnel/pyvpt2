@@ -23,7 +23,7 @@ import pyvpt2
 # -- Project information -----------------------------------------------------
 
 project = 'pyVPT2'
-copyright = ("2021-2022, Philip Nelson. Project structure based on the "
+copyright = ("2021-2023, Philip Nelson. Project structure based on the "
              "Computational Molecular Science Python Cookiecutter version 1.6")
 author = 'Philip Nelson'
 
