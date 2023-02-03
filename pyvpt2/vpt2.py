@@ -240,8 +240,6 @@ def identify_fermi(omega: np.ndarray, phi_ijk: np.ndarray, n_modes: np.ndarray, 
     fermi_chi_list : np.ndarray
     """
     # Identify Fermi resonances:
-    fermi1 = np.zeros((n_modes, n_modes), dtype=int) # 2*ind1 = ind2
-    fermi2 = np.zeros((n_modes, n_modes, n_modes), dtype=int) # ind1 + ind2 = ind3
     fermi_chi_list = np.zeros((n_modes, n_modes), dtype=int) # list of deperturbed chi constants
     delta_omega_threshold = kwargs.get("FERMI_OMEGA_THRESH")
     delta_K_threshold = kwargs.get("FERMI_K_THRESH")
@@ -255,8 +253,6 @@ def identify_fermi(omega: np.ndarray, phi_ijk: np.ndarray, n_modes: np.ndarray, 
                 d_K = phi_ijk[i,i,j]**4 / (256*d_omega**3)
                 if d_K >= delta_K_threshold:
                     fermi_list.append((j, (i,i)))
-                    fermi1[i,j] = True
-                    fermi2[i,i,j] = True
                     fermi_chi_list[i,i] = True
                     fermi_chi_list[i,j] = True
                     print("Detected 2(" + str(i+1) + ") = " + str(j+1) + ", d_omega = " + str(d_omega) + ", d_K = " + str(d_K))
@@ -267,17 +263,15 @@ def identify_fermi(omega: np.ndarray, phi_ijk: np.ndarray, n_modes: np.ndarray, 
                 d_K = phi_ijk[i,j,k]**4 / (64* d_omega**3)
                 if d_K >= delta_K_threshold:
                     fermi_list.append((k, (i,j)))
-                    fermi2[i,j,k] = True
                     fermi_chi_list[i,j] = True
                     fermi_chi_list[i,k] = True
                     fermi_chi_list[j,k] = True
-                    if fermi2[j,i,k]: continue    # only print once for each resonance
                     print("Detected " + str(i+1) + " + " + str(j+1) + " = " + str(k+1) + ", d_omega = " + str(d_omega) + ", d_K = " + str(d_K))
 
     if np.sum(fermi_chi_list) == 0:
         print("None detected.")
 
-    return fermi1, fermi2, fermi_chi_list
+    return fermi_list
 
 def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
     """
@@ -306,7 +300,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
 
     zeta, B = coriolis(mol, harm['q'])
     rotor_type = mol.rotor_type()
-    fermi1, fermi2, fermi_chi_list = identify_fermi(omega, phi_ijk, n_modes, v_ind, **kwargs)
+    fermi_list = identify_fermi(omega, phi_ijk, n_modes, v_ind, **kwargs)
 
     chi = np.zeros((n_modes, n_modes))
     chi0 = 0.0
@@ -321,7 +315,8 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
                 chi[i, i] = phi_iijj[i, i]
 
                 for k in v_ind:
-                    if fermi1[i,k]:
+                    if (k,(i,i)) in fermi_list:
+                    #if fermi1[i,k]:
                         temp = (phi_ijk[i, i, k] ** 2 ) / 2 
                         temp *= (1 / (2 * omega[i] + omega[k]) + 4 / omega[k])
                         chi[i,i] -= temp
@@ -348,7 +343,8 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
                     #  temp_0 term appears in chi_0                  
 
 
-                    if fermi2[i, j, k]:
+                    if (k,(i,j)) in fermi_list:
+                    #if fermi2[i, j, k]:
                         # i + j = k
                         delta_ij = 1 / (omega[i] + omega[j] + omega[k])
                         #delta_ij -= 1 / (omega[i] + omega[j] - omega[k]) deperturbed
@@ -363,7 +359,8 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
                         delta_0 -= 1 / (-omega[i] + omega[j] + omega[k])
                         #chi0 += 2 * phi_ijk[i,j,k]**2  * delta_0
 
-                    elif fermi2[j, k, i]:
+                    elif (i,(j,k)) in fermi_list:
+                    #elif fermi2[j, k, i]:
                         # j + k = i
                         delta_ij = 1 / (omega[i] + omega[j] + omega[k])
                         delta_ij -= 1 / (omega[i] + omega[j] - omega[k])
@@ -377,7 +374,8 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
                         delta_0 -= 1 / (omega[i] - omega[j] + omega[k])
                         #delta_0 -= 1 / (-omega[i] + omega[j] + omega[k]) deperturbed
 
-                    elif fermi2[k, i, j]:
+                    elif (j,(i,k)) in fermi_list:
+                    #elif fermi2[k, i, j]:
                         # k + i = j
                         delta_ij = 1 / (omega[i] + omega[j] + omega[k])
                         delta_ij -= 1 / (omega[i] + omega[j] - omega[k])
@@ -425,9 +423,9 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
                 zpve += (1 / 4) * chi[i, j]
 
     print("\nAnharmonic Constants (cm-1)")
-    rows = [[i+1, j+1, '*' * fermi_chi_list[i,j], chi[i, j]] for [i,j] in itertools.combinations_with_replacement(v_ind,2)]
+    rows = [[i+1, j+1, chi[i, j]] for [i,j] in itertools.combinations_with_replacement(v_ind,2)]
     for row in rows:
-        print("{: >2} {: >2} {: >1} {: >10.4f}".format(*row))
+        print("{: >2} {: >2} {: >10.4f}".format(*row))
 
     anharmonic = np.zeros(n_modes)
     overtone = np.zeros(n_modes)
