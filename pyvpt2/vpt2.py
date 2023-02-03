@@ -2,7 +2,7 @@
 import psi4
 import numpy as np
 import itertools
-from typing import Dict, TYPE_CHECKING, Tuple, Union
+from typing import Dict, TYPE_CHECKING, Tuple, Union, List
 from psi4.driver.driver_findif import _findif_schema_to_wfn
 from qcelemental.models import AtomicResult
 from psi4.driver.task_base import AtomicComputer
@@ -151,6 +151,7 @@ def process_options_keywords(**kwargs) -> Dict:
     kwargs.setdefault("METHOD_2", None)
     kwargs.setdefault("FD", "HESSIAN")
     kwargs.setdefault("FERMI", True)
+    kwargs.setdefault("GVPT2", False)
     kwargs.setdefault("FERMI_OMEGA_THRESH", 200)
     kwargs.setdefault("FERMI_K_THRESH", 1)
     kwargs.setdefault("RETURN_PLAN", False)
@@ -448,11 +449,11 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
             band[i, j] += 0.5 * (chi[i,k] + chi[j,k])
         band[j, i] = band[i, j]
 
-    #if kwargs["FERMI"]:
-        #fermi_nu, fermi_ind = process_fermi_solver(fermi1, fermi2, v_ind, anharmonic, overtone, band, phi_ijk)
-        #deperturbed = anharmonic.copy()
-        #for ind in fermi_ind:
-            #anharmonic[ind] = fermi_nu[ind]
+    if kwargs["FERMI"] and kwargs["GVPT2"]:
+        fermi_nu, fermi_ind = process_fermi_solver(fermi_list, v_ind, anharmonic, overtone, band, phi_ijk)
+        deperturbed = anharmonic.copy()
+        for ind in fermi_ind:
+            anharmonic[ind] = fermi_nu[ind]
     
     result_dict = {}
     result_dict["Harmonic Freq"] = omega.tolist()
@@ -468,14 +469,13 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
 
     return result_dict
 
-def process_fermi_solver(fermi1, fermi2, v_ind, nu, overtone, band, phi_ijk):
+def process_fermi_solver(fermi_list: List, v_ind: List, nu: np.ndarray, overtone:np.ndarray, band:np.ndarray, phi_ijk:np.ndarray):
     """
     Process deperturbed results into fermi solver
 
     Parameters
     ----------
-    fermi1 : np.ndarray
-    fermi2 : np.ndarray
+    fermi_list : list
     v_ind : list    
     nu : np.ndarray
     overtone : np.ndarray
@@ -485,27 +485,28 @@ def process_fermi_solver(fermi1, fermi2, v_ind, nu, overtone, band, phi_ijk):
     Returns
     -------
     nu : np.ndarray
+    updated_indices: list
 
     """    
 
-    fermi_list = []
+    interaction_list = []
     # process fermi1 resonances
     for [i, j] in itertools.permutations(v_ind, 2):
-        if fermi1[i, j]:
+        if (i, (j,j)) in fermi_list:
             interaction = {"left": {"state": (i,), "nu": nu[i]}}
             interaction.update({"right": {"state": (j,j), "nu": overtone[j]}})
             interaction.update({"phi": phi_ijk[i, j, j], "type": 1})
-            fermi_list.append(interaction)
+            interaction_list.append(interaction)
 
     # process fermi2 resonances
     for [i, j, k] in itertools.permutations(v_ind, 3):
-        if fermi2[k, i, j]:
+        if (i, (j,k)) in fermi_list:
             interaction = {"left": {"state": (i,), "nu": nu[i]}}
             interaction.update({"right": {"state": (j,k), "nu": band[j,k]}})
             interaction.update({"phi": phi_ijk[i, j, k], "type": 2})
-            fermi_list.append(interaction)
+            interaction_list.append(interaction)
 
-    state_list = fermi_solver(fermi_list)
+    state_list = fermi_solver(interaction_list)
 
     updated_indices = []
     for key, value in state_list.items():
