@@ -647,6 +647,8 @@ class QuarticComputer(BaseComputer):
                 'provenance': psi4.p4util.provenance_stamp(__name__, module=self.findifrec["reference"]["module"]),
                 'extras': {
                     'findif_record': copy.deepcopy(self.findifrec),
+                    'phi_ijk': phi_ijk,
+                    'phi_iijj': phi_iijj
                 },
                 'return_result': self.findifrec["harm"]["H0"],
                 'success': True,
