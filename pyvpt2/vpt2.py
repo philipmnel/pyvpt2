@@ -222,7 +222,7 @@ def vpt2_from_harmonic(harmonic_result: AtomicResult, **kwargs) -> quartic.Quart
     
     return plan
 
-def identify_fermi(omega: np.ndarray, phi_ijk: np.ndarray, n_modes: np.ndarray, v_ind:  np.ndarray, **kwargs):
+def identify_fermi(omega: np.ndarray, phi_ijk: np.ndarray, n_modes: np.ndarray, v_ind:  np.ndarray, **kwargs) -> List:
     """
     Identify Fermi resonances
 
@@ -450,11 +450,12 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
         band[j, i] = band[i, j]
 
     if kwargs["FERMI"] and kwargs["GVPT2"]:
-        fermi_nu, fermi_ind = process_fermi_solver(fermi_list, v_ind, anharmonic, overtone, band, phi_ijk)
         deperturbed = anharmonic.copy()
-        for ind in fermi_ind:
-            anharmonic[ind] = fermi_nu[ind]
-    
+        fermi_nu, fermi_ind = process_fermi_solver(fermi_list, v_ind, anharmonic, overtone, band, phi_ijk)
+        #for ind in fermi_ind:
+        #    anharmonic[ind] = fermi_nu[ind]
+        # this was already done in-place in process_fermi_solver
+        
     result_dict = {}
     result_dict["Harmonic Freq"] = omega.tolist()
     result_dict["Freq Correction"] = (anharmonic - omega).tolist()
@@ -464,12 +465,15 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
     result_dict["Anharmonic ZPVE"] = zpve
     result_dict["Quartic Schema"] = quartic_result
 
+    if kwargs["FERMI"] and kwargs["GVPT2"]:
+        result_dict["Deperturbed Freq"] = deperturbed.tolist()
+
     print_result(result_dict, v_ind)
     result_dict["Quartic Schema"] = quartic_result.dict(encoding="json")
 
     return result_dict
 
-def process_fermi_solver(fermi_list: List, v_ind: List, nu: np.ndarray, overtone:np.ndarray, band:np.ndarray, phi_ijk:np.ndarray):
+def process_fermi_solver(fermi_list: List, v_ind: List, nu: np.ndarray, overtone:np.ndarray, band:np.ndarray, phi_ijk:np.ndarray) -> Tuple[np.ndarray, List]:
     """
     Process deperturbed results into fermi solver
 
@@ -501,6 +505,8 @@ def process_fermi_solver(fermi_list: List, v_ind: List, nu: np.ndarray, overtone
     # process fermi2 resonances
     for [i, j, k] in itertools.permutations(v_ind, 3):
         if (i, (j,k)) in fermi_list:
+            if j > k: continue # avoid double counting
+
             interaction = {"left": {"state": (i,), "nu": nu[i]}}
             interaction.update({"right": {"state": (j,k), "nu": band[j,k]}})
             interaction.update({"phi": phi_ijk[i, j, k], "type": 2})

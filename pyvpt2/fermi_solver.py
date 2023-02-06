@@ -1,9 +1,10 @@
 import numpy as np
+from typing import Dict
 
 # interaction: {"left": {"state": [0], "nu": nu0}, "right": {"state": [1,1], "nu": nu11}, "phi": phi_011, "type": 1}
-def fermi_solver(fermi_list):
+def fermi_solver(interaction_list: Dict) -> Dict:
     polyad_list = [] # list of constructed polyads
-    for interaction in fermi_list:
+    for interaction in interaction_list:
         flag = False
         for polyad in polyad_list:
             if interaction["left"]["state"] in polyad.state_list:
@@ -24,14 +25,14 @@ def fermi_solver(fermi_list):
 
 
 class Polyad:
-    def __init__(self, interaction):
+    def __init__(self, interaction: Dict):
         left = interaction.pop("left")
         right = interaction.pop("right")
         self.state_list = set([left["state"], right["state"]])
         self.nu_list = {left["state"]: left["nu"], right["state"]: right["nu"]}
         self.phi_list = {(left["state"], right["state"]): interaction}
 
-    def add(self, interaction):
+    def add(self, interaction: Dict):
         """ add an interaction to the state list"""
         left = interaction.pop("left")
         right = interaction.pop("right")
@@ -58,7 +59,7 @@ class Polyad:
                 self.H[i, j] = 1/(np.sqrt(2) * 2) * interaction["phi"]
                 self.H[j, i] = self.H[i, j]
         
-    def solve(self):
+    def solve(self) -> Dict:
         """ solve hamiltonian"""
         self.build_hamiltonian()
         evals, evecs = np.linalg.eigh(self.H)

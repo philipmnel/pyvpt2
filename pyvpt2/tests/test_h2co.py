@@ -29,24 +29,30 @@ def test_h2co_vpt2():
     options = {'METHOD': 'scf/6-31g*',
             'FD': 'HESSIAN',
             'DISP_SIZE': 0.05,
-            'FERMI': True}
+            'FERMI': True,
+            'GVPT2': True}
 
     ref_omega = [1335.4895, 1382.7834, 1679.7417, 2031.0176, 3157.7172, 3230.2677]
-    ref_anharmonic = [-17.4496, -18.9212, -33.1555, -25.5869, -142.8295, -184.5589]
+    ref_deperturbed = [-17.4496, -18.9212, -33.1555, -25.5869, -142.8295, -184.5589]
+    ref_anharmonic = [-17.4496, -18.9212, -33.1555, -25.5869, -142.8295, -129.2199]
     ref_harm_zpve = 6408.5086
     ref_zpve_corr = -77.2184
 
     results = pyvpt2.vpt2(mol, **options)
     omega = results["Harmonic Freq"][-6:]
     anharmonic = results["Freq Correction"][-6:]
+    depertubed = results["Deperturbed Freq"][-6:]
+    depertubed = [depertubed[i] - omega[i] for i in range(len(omega))]
     harm_zpve  = results["Harmonic ZPVE"]
     zpve_corr = results["ZPVE Correction"]
     print(omega)
     print(anharmonic)
     print(harm_zpve)
     print(zpve_corr)
+    print(depertubed)
 
     assert psi4.compare_values(ref_omega, omega, 0.1)
     assert psi4.compare_values(ref_anharmonic, anharmonic, 0.1)
+    assert psi4.compare_values(ref_deperturbed, depertubed, 0.1)
     assert psi4.compare_values(ref_harm_zpve, harm_zpve, 0.1)
     assert psi4.compare_values(ref_zpve_corr, zpve_corr, 0.1)
