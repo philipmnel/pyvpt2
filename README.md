@@ -7,6 +7,8 @@ pyVPT2
 ### About
 pyVPT2 is a package to calculate VPT2 vibrational frequencies using psi4. Cubic/quartic constants can be optionally computed in a distributed parallel fashion using QCFractal.
 
+For usage check the [wiki page](https://github.com/philipmnel/pyvpt2/wiki/Wiki).
+
 ### Dependencies
 Required:
 - psi4 = 1.7
