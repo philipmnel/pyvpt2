@@ -3,7 +3,7 @@ pyVPT2
 [//]: # (Badges)
 [![GitHub Actions Build Status](https://github.com/philipmnel/pyvpt2/workflows/CI/badge.svg)](https://github.com/philipmnel/pyvpt2/actions?query=workflow%3ACI)
 [![codecov](https://codecov.io/gh/philipmnel/pyvpt2/branch/main/graph/badge.svg?token=goQRxdntmS)](https://codecov.io/gh/philipmnel/pyvpt2)
-[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://github.com/philipmnel/pyvpt2/blob/main/LICENSE)
 
 ### About
 pyVPT2 is a package to calculate VPT2 vibrational frequencies using psi4. Cubic/quartic constants can be optionally computed in a distributed parallel fashion using QCFractal.
