@@ -36,7 +36,7 @@ jobs:
         environment-file: devtools/conda-envs/test_env.yaml
         environment-name: test
         channels: psi4,defaults,conda-forge
-        channel-priority: strict
+        channel-priority: flexible
 
     - name: Install pyVPT2
       # conda setup requires this special shell
