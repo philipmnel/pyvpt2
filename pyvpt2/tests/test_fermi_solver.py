@@ -1,6 +1,6 @@
 import numpy as np
 import pyvpt2
-from pyvpt2.fermi_solver import fermi_solver
+from pyvpt2.fermi_solver import fermi_solver, Interaction, State
 from psi4 import compare_values
 import pytest
 
@@ -78,9 +78,12 @@ def test_fermi_solver():
 
     ref = {(1,2): 3047.2, (0,): 3116.3, (3,6): 2711.5, (5,): 2851.5, (2,6): 3004.3}
 
-    interaction0 = {"left": {"state": (0,), "nu": 3095.5}, "right": {"state": (1,2), "nu": 3068.0}, "phi": -89.7, "type": 2}
-    interaction1 = {"left": {"state": (5,), "nu": 2828.0}, "right": {"state": (2,6), "nu": 2987.4}, "phi": -146.7, "type": 2}
-    interaction2 = {"left": {"state": (5,), "nu": 2828.0}, "right": {"state": (3,6), "nu": 2751.9}, "phi": 185.8, "type": 2}
+    interaction0 = Interaction(left=State(state=(0,), nu=3095.5), right=State(state=(1,2), 
+                            nu=3068.0), phi=-89.7, ftype=2)
+    interaction1 = Interaction(left=State(state=(5,), nu=2828.0), right=State(state=(2,6), 
+                            nu=2987.4), phi=-146.7, ftype=2)
+    interaction2 = Interaction(left=State(state=(5,), nu=2828.0), right=State(state=(3,6), 
+                            nu=2751.9), phi=185.8, ftype=2)
     fermi_list = [interaction0, interaction1, interaction2]
 
     state_list = fermi_solver(fermi_list)

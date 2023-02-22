@@ -12,7 +12,7 @@ import logging
 
 #Local imports:
 from . import quartic
-from .fermi_solver import fermi_solver
+from .fermi_solver import fermi_solver, Interaction, State
 from .constants import *
 
 logger = logging.getLogger(__name__)
@@ -497,9 +497,8 @@ def process_fermi_solver(fermi_list: List, v_ind: List, nu: np.ndarray, overtone
     # process fermi1 resonances
     for [i, j] in itertools.permutations(v_ind, 2):
         if (i, (j,j)) in fermi_list:
-            interaction = {"left": {"state": (i,), "nu": nu[i]}}
-            interaction.update({"right": {"state": (j,j), "nu": overtone[j]}})
-            interaction.update({"phi": phi_ijk[i, j, j], "type": 1})
+            interaction = Interaction(left=State(state=(i,), nu=nu[i]), right=State(state=(j,j), 
+                            nu=overtone[j]), phi=phi_ijk[i, j, j], ftype=1)
             interaction_list.append(interaction)
 
     # process fermi2 resonances
@@ -507,9 +506,8 @@ def process_fermi_solver(fermi_list: List, v_ind: List, nu: np.ndarray, overtone
         if (i, (j,k)) in fermi_list:
             if j > k: continue # avoid double counting
 
-            interaction = {"left": {"state": (i,), "nu": nu[i]}}
-            interaction.update({"right": {"state": (j,k), "nu": band[j,k]}})
-            interaction.update({"phi": phi_ijk[i, j, k], "type": 2})
+            interaction = Interaction(left=State(state=(i,), nu=nu[i]), right=State(state=(j,k), 
+                            nu=band[j,k]), phi=phi_ijk[i, j, k], ftype=2)
             interaction_list.append(interaction)
 
     state_list = fermi_solver(interaction_list)
