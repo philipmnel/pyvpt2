@@ -139,6 +139,16 @@ def coriolis(mol: psi4.core.Molecule, q: np.ndarray) -> Tuple[np.ndarray, np.nda
 def process_options_keywords(**kwargs) -> Dict:
     """
     Process input keywords
+
+    Parameters
+    ----------
+    kwargs: Dict
+        keyword arguments
+
+    Returns
+    -------
+    Dict
+        Processed keywords
     """
 
     if kwargs is None:
@@ -161,13 +171,17 @@ def process_options_keywords(**kwargs) -> Dict:
 
 def vpt2(mol: psi4.core.Molecule, **kwargs) -> Dict:
     """
-    vpt2: performs vibrational pertubration theory calculation
+    Performs vibrational pertubration theory calculation
 
-    mol: psi4 molecule object
-    options: program options dictionary
+    Parameters
+    ----------
+    mol: psi4.core.Molecule
+        Input molecule    
 
-    omega: harmonic frequencies
-    anharmonic: vpt2 anharmonic corrections
+    Returns
+    -------
+    Dict
+        VPT2 results dictionary
     """
 
     kwargs = process_options_keywords(**kwargs)
@@ -229,16 +243,18 @@ def identify_fermi(omega: np.ndarray, phi_ijk: np.ndarray, n_modes: np.ndarray, 
     Parameters
     ----------
     omega : np.ndarray
+        Harmonic freqs
     phi_ijk : np.ndarray
+        Cubic force constants
     n_modes : np.ndarray
+        Number of modes
     v_ind : np.ndarray
-    **kwargs : Dict
+        Vibrational indices
 
     Returns
     -------
-    fermi1 : np.ndarray
-    fermi2 : np.ndarray
-    fermi_chi_list : np.ndarray
+    List
+        List of Fermi resonant interactions
     """
     # Identify Fermi resonances:
     fermi_chi_list = np.zeros((n_modes, n_modes), dtype=int) # list of deperturbed chi constants
@@ -280,7 +296,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
 
     Parameters
     ----------
-    quartic_result : Atomic Results
+    quartic_result : AtomicResult
         Results from quartic finite difference calculation
     
     Returns
@@ -317,7 +333,6 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
 
                 for k in v_ind:
                     if (k,(i,i)) in fermi_list:
-                    #if fermi1[i,k]:
                         temp = (phi_ijk[i, i, k] ** 2 ) / 2 
                         temp *= (1 / (2 * omega[i] + omega[k]) + 4 / omega[k])
                         chi[i,i] -= temp
@@ -340,35 +355,26 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
                 for k in v_ind:
                     chi[i, j] -= (phi_ijk[i, i, k] * phi_ijk[j, j, k]) / omega[k]
 
-                    #  temp_ij term appears in chi_ij
-                    #  temp_0 term appears in chi_0                  
-
-
                     if (k,(i,j)) in fermi_list:
-                    #if fermi2[i, j, k]:
                         # i + j = k
                         delta_ij = 1 / (omega[i] + omega[j] + omega[k])
                         #delta_ij -= 1 / (omega[i] + omega[j] - omega[k]) deperturbed
                         delta_ij += 1 / (-omega[i] + omega[j] + omega[k])
                         delta_ij += 1 / (omega[i] - omega[j] + omega[k])
                         delta_ij /= -2
-                        #chi[i, j] -= (phi_ijk[i, j, k] ** 2) * delta / 2
 
                         delta_0 = 1 / (omega[i] + omega[j] + omega[k])
                         #delta_0 -= 1 / (omega[i] + omega[j] - omega[k]) deperturbed
                         delta_0 -= 1 / (omega[i] - omega[j] + omega[k])
                         delta_0 -= 1 / (-omega[i] + omega[j] + omega[k])
-                        #chi0 += 2 * phi_ijk[i,j,k]**2  * delta_0
 
                     elif (i,(j,k)) in fermi_list:
-                    #elif fermi2[j, k, i]:
                         # j + k = i
                         delta_ij = 1 / (omega[i] + omega[j] + omega[k])
                         delta_ij -= 1 / (omega[i] + omega[j] - omega[k])
                         #delta_ij += 1 / (-omega[i] + omega[j] + omega[k]) deperturbed
                         delta_ij += 1 / (omega[i] - omega[j] + omega[k])
                         delta_ij /= -2
-                        #chi[i, j] -= (phi_ijk[i, j, k] ** 2) * delta / 2
 
                         delta_0 = 1 / (omega[i] + omega[j] + omega[k])
                         delta_0 -= 1 / (omega[i] + omega[j] - omega[k])
@@ -376,14 +382,12 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
                         #delta_0 -= 1 / (-omega[i] + omega[j] + omega[k]) deperturbed
 
                     elif (j,(i,k)) in fermi_list:
-                    #elif fermi2[k, i, j]:
                         # k + i = j
                         delta_ij = 1 / (omega[i] + omega[j] + omega[k])
                         delta_ij -= 1 / (omega[i] + omega[j] - omega[k])
                         delta_ij += 1 / (-omega[i] + omega[j] + omega[k])
                         #delta_ij += 1 / (omega[i] - omega[j] + omega[k]) deperturbed
                         delta_ij /= -2
-                        #chi[i, j] -= (phi_ijk[i, j, k] ** 2) * delta / 2
 
                         delta_0 = 1 / (omega[i] + omega[j] + omega[k])
                         delta_0 -= 1 / (omega[i] + omega[j] - omega[k])
@@ -397,12 +401,10 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
                         delta *= omega[i] - omega[j] - omega[k]
                         delta_ij = 2 * omega[k] * (omega[i] ** 2 + omega[j] ** 2 - omega[k] ** 2) / delta
                         delta_0 = -8 * (omega[i] * omega[j] * omega[k]) / delta
-                        #chi[i, j] +=  temp * phi_ijk[i, j, k] ** 2 / delta
 
                     chi[i,j] += phi_ijk[i,j,k]**2 * delta_ij
 
                     if (j > i) and (k > j):
-                        #chi0 -=  16 * (omega[i] * omega[j] * omega[k] * phi_ijk[i, j, k] ** 2) / delta
                         chi0 +=  2 * phi_ijk[i, j, k] ** 2 * delta_0
 
                 chi[i, j] /= 4
@@ -480,16 +482,24 @@ def process_fermi_solver(fermi_list: List, v_ind: List, nu: np.ndarray, overtone
     Parameters
     ----------
     fermi_list : list
+        List of fermi resonances
     v_ind : list    
+        List of vibrational indices
     nu : np.ndarray
+        Anharmonic deperturbed frequencies
     overtone : np.ndarray
+        Overtone frequencies
     band : np.ndarray
+        Combination band frequencies
     phi_ijk : np.ndarray
+        Cubic force constants
 
     Returns
     -------
-    nu : np.ndarray
-    updated_indices: list
+    np.ndarray
+        Variationally corrected frequencies
+    List
+        Indices of variationally corrected frequencies
 
     """    
 
@@ -524,6 +534,13 @@ def process_fermi_solver(fermi_list: List, v_ind: List, nu: np.ndarray, overtone
 def print_result(result_dict: Dict, v_ind: np.ndarray):
     """
     Prints VPT2 results
+
+    Parameters
+    ----------
+    result_dict : dict
+        Dictionary of VPT2 results
+    v_ind : np.ndarray
+        List of vibrational indices
     """
 
     omega = result_dict["Harmonic Freq"]
