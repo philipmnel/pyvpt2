@@ -17,7 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.8, 3.9]
+        python-version: [3.8, 3.9, 3.10]
+        psi4-version: [stable, nightly]
 
     steps:
     - uses: actions/checkout@v3
@@ -33,9 +34,8 @@ jobs:
       uses: mamba-org/provision-with-micromamba@main
       with:
         extra-specs: python=${{ matrix.python-version }}
-        environment-file: devtools/conda-envs/test_env.yaml
+        environment-file: devtools/conda-envs/test_env_${{ matrix.psi4-version }}.yaml
         environment-name: test
-        channels: psi4,defaults,conda-forge
         channel-priority: flexible
 
     - name: Install pyVPT2

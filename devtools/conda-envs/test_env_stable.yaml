@@ -1,0 +1,25 @@
+name: test-stable
+channels:
+  - psi4
+  - defaults
+  - conda-forge
+dependencies:
+  - psi4
+  - qcfractal
+  - qcportal
+  - qcelemental
+  - intel-openmp
+  
+    # Base depends
+  - python
+  - pip
+
+    # Testing
+  - pytest
+  - pytest-cov
+  - codecov
+
+    # Pip-only installs
+  #- pip:
+  #  - codecov
+
