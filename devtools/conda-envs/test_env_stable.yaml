@@ -2,7 +2,7 @@ name: test-stable
 channels:
   - psi4
   - defaults
-  - conda-forge
+  - qcarchive/label/next
 dependencies:
   - psi4
   - qcfractal
