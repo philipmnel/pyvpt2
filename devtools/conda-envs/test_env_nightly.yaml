@@ -3,6 +3,7 @@ channels:
   - psi4
   - defaults
   - qcarchive/label/next
+  - conda-forge
 dependencies:
   - psi4
   - qcfractal
