@@ -64,11 +64,12 @@ def process_harmonic(wfn: psi4.core.Wavefunction) -> Dict:
     omega_au = omega * wave_to_hartree
     kforce_au = kforce * mdyneA_to_hartreebohr
     modes_unitless = np.copy(modes)
-    gamma = omega_au / kforce_au
+    gamma = [0.0] * n_modes
     v_ind = []
 
     for i in range(n_modes):
         if trv[i] == "V" and omega[i] != 0.0:
+            gamma[i] = omega_au[i] / kforce_au[i]
             modes_unitless[:, i] *= np.sqrt(gamma[i])
             v_ind.append(i)
         else:
@@ -114,7 +115,6 @@ def coriolis(mol: psi4.core.Molecule, q: np.ndarray) -> Tuple[np.ndarray, np.nda
     n_atom = mol.natom()
     # Need to use inertia_tensor() to preserve ordering of axes
     inertiavals, inertiavecs  = np.linalg.eig(mol.inertia_tensor().np)
-    # FIXME: ignoring divide error not working; should find a better way to handle linear mols
     with np.errstate(divide = 'ignore'):
         B = np.where(inertiavals == 0.0, 0.0, h / (8 * np.pi ** 2 * c * inertiavals))
     B /= kg_to_amu * meter_to_bohr ** 2
@@ -185,10 +185,7 @@ def _findif_schema_to_wfn(findif_model: AtomicResult) -> psi4.core.Wavefunction:
     # setting CURRENT E/G/H on core below is authoritative P::e record
     for qcv, val in findif_model.extras["qcvars"].items():
         if qcv in ["CURRENT DIPOLE", "SCF DIPOLE"]:
-            val = np.asarray(val).reshape(-1,1)
-        if isinstance(val, list):
-            val = np.array(val)
-            val = val.reshape(-1,1)
+            val = np.array(val).reshape(-1,1)
         for obj in [psi4.core, wfn]:
             obj.set_variable(qcv, val)
 
