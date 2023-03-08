@@ -5,7 +5,7 @@ import time
 
 no_qcfractal = False
 try:
-    from qcfractal import FractalSnowflakeHandler
+    from qcfractal.snowflake import FractalSnowflake
 except:
     no_qcfractal = True
 
@@ -13,7 +13,7 @@ except:
 @pytest.mark.parametrize("driver", ["ENERGY", "GRADIENT"]) #HESSIAN harmonics currently broken
 def test_h2o_snowflake_vpt2(driver):
     
-    snowflake = FractalSnowflakeHandler()
+    snowflake = FractalSnowflake()
     client = snowflake.client()
 
     mol = psi4.geometry("""
@@ -53,14 +53,12 @@ def test_h2o_snowflake_vpt2(driver):
 
     harmonic_plan = pyvpt2.vpt2(mol, **options)
     harmonic_plan.compute(client=client)
-    while len(client.query_tasks()) != 0:
-        time.sleep(1)
+    snowflake.await_results()
     harmonic_ret = harmonic_plan.get_results(client=client)
 
     plan = pyvpt2.vpt2_from_harmonic(harmonic_ret, **options)
     plan.compute(client=client)
-    while len(client.query_tasks()) != 0:
-        time.sleep(1)
+    snowflake.await_results()
     ret = plan.get_results(client=client)
     results = pyvpt2.process_vpt2(ret, **options)
 
