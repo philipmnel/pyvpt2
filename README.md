@@ -14,13 +14,13 @@ Disclaimer: This codebase is still under active development.
 
 ### Dependencies
 Required:
-- psi4 = 1.7
-- python = 3.8 or 3.9
+- psi4 = 1.7+
+- python = 3.8+
 
 Installing psi4 will pull all other required dependencies.
 
 Optional:
-- qcportal=0.15.8
+- qcportal = `next`
 
 ### Installation
 To install from source, clone this repository and run

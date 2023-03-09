@@ -1,7 +1,8 @@
-name: test
+name: test-stable
 channels:
   - psi4
   - defaults
+  - qcarchive/label/next
   - conda-forge
 dependencies:
   - psi4

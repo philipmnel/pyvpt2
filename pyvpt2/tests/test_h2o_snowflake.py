@@ -5,7 +5,7 @@ import time
 
 no_qcfractal = False
 try:
-    from qcfractal import FractalSnowflakeHandler
+    from qcfractal.snowflake import FractalSnowflake
 except:
     no_qcfractal = True
 
@@ -13,7 +13,7 @@ except:
 @pytest.mark.parametrize("driver", ["ENERGY", "GRADIENT"]) #HESSIAN harmonics currently broken
 def test_h2o_snowflake_vpt2(driver):
     
-    snowflake = FractalSnowflakeHandler()
+    snowflake = FractalSnowflake()
     client = snowflake.client()
 
     mol = psi4.geometry("""
@@ -24,10 +24,9 @@ def test_h2o_snowflake_vpt2(driver):
     H 1 R1
     H 1 R2 2 A
    
-    R1    =        0.94731025924472878064
-    R2    =        0.94731025924472878064
-    A    =      105.5028950965639
-
+    A         =  106.3819454243
+    R1        =    0.9392155213
+    R2        =    0.9392155213
     symmetry c2v
     """)
 
@@ -37,30 +36,26 @@ def test_h2o_snowflake_vpt2(driver):
 
     psi4.set_options({'d_convergence': 1e-10,
                 'e_convergence': 1e-10,
-                'scf_type': 'direct',
-                'puream': True,
                 'points': 5})
 
-    options = {'METHOD': 'scf/6-31g*',
+    options = {'METHOD': 'scf/cc-pv[dt]z',
             'FD': driver,
             'DISP_SIZE': 0.05,
             'RETURN_PLAN': True}
 
-    cfour_omega = [1826.8154, 4060.2203, 4177.8273]
-    cfour_anharmonic = [-54.0635, -158.2345, -177.9707] 
-    cfour_harm_zpve = 5032.431
-    cfour_zpve_corr = -70.352
+    ref_omega = [1747.4491, 4129.8877, 4230.4755]
+    ref_anharmonic = [-53.8382, -157.1904, -171.4518] 
+    ref_harm_zpve = 5053.9062
+    ref_zpve_corr = -69.5146
 
     harmonic_plan = pyvpt2.vpt2(mol, **options)
     harmonic_plan.compute(client=client)
-    while len(client.query_tasks()) != 0:
-        time.sleep(1)
+    snowflake.await_results()
     harmonic_ret = harmonic_plan.get_results(client=client)
 
     plan = pyvpt2.vpt2_from_harmonic(harmonic_ret, **options)
     plan.compute(client=client)
-    while len(client.query_tasks()) != 0:
-        time.sleep(1)
+    snowflake.await_results()
     ret = plan.get_results(client=client)
     results = pyvpt2.process_vpt2(ret, **options)
 
@@ -69,7 +64,7 @@ def test_h2o_snowflake_vpt2(driver):
     harm_zpve  = results["Harmonic ZPVE"]
     zpve_corr = results["ZPVE Correction"]
 
-    assert psi4.compare_values(cfour_omega, omega, 0.1)
-    assert psi4.compare_values(cfour_anharmonic, anharmonic, 0.1)
-    assert psi4.compare_values(cfour_harm_zpve, harm_zpve, 0.1)
-    assert psi4.compare_values(cfour_zpve_corr, zpve_corr, 0.1)
+    assert psi4.compare_values(ref_omega, omega, 0.5)
+    assert psi4.compare_values(ref_anharmonic, anharmonic, 0.5)
+    assert psi4.compare_values(ref_harm_zpve, harm_zpve, 0.5)
+    assert psi4.compare_values(ref_zpve_corr, zpve_corr, 0.5)

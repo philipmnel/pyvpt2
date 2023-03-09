@@ -3,7 +3,6 @@ import psi4
 import numpy as np
 import itertools
 from typing import Dict, TYPE_CHECKING, Tuple, Union, List
-from psi4.driver.driver_findif import _findif_schema_to_wfn
 from qcelemental.models import AtomicResult
 from psi4.driver.task_base import AtomicComputer
 from psi4.driver.driver_cbs import CompositeComputer
@@ -65,11 +64,12 @@ def process_harmonic(wfn: psi4.core.Wavefunction) -> Dict:
     omega_au = omega * wave_to_hartree
     kforce_au = kforce * mdyneA_to_hartreebohr
     modes_unitless = np.copy(modes)
-    gamma = omega_au / kforce_au
+    gamma = [0.0] * n_modes
     v_ind = []
 
     for i in range(n_modes):
         if trv[i] == "V" and omega[i] != 0.0:
+            gamma[i] = omega_au[i] / kforce_au[i]
             modes_unitless[:, i] *= np.sqrt(gamma[i])
             v_ind.append(i)
         else:
@@ -115,7 +115,6 @@ def coriolis(mol: psi4.core.Molecule, q: np.ndarray) -> Tuple[np.ndarray, np.nda
     n_atom = mol.natom()
     # Need to use inertia_tensor() to preserve ordering of axes
     inertiavals, inertiavecs  = np.linalg.eig(mol.inertia_tensor().np)
-    # FIXME: ignoring divide error not working; should find a better way to handle linear mols
     with np.errstate(divide = 'ignore'):
         B = np.where(inertiavals == 0.0, 0.0, h / (8 * np.pi ** 2 * c * inertiavals))
     B /= kg_to_amu * meter_to_bohr ** 2
@@ -167,6 +166,30 @@ def process_options_keywords(**kwargs) -> Dict:
     kwargs.setdefault("RETURN_PLAN", False)
 
     return kwargs
+
+def _findif_schema_to_wfn(findif_model: AtomicResult) -> psi4.core.Wavefunction:
+    """
+    Helper function to produce Wavefunction and Psi4 files from a FiniteDifference-flavored AtomicResult.
+    Some changes from psi4 internal to work with QCFractal next branch.
+    """
+
+    # new skeleton wavefunction w/mol, highest-SCF basis (just to choose one), & not energy
+    mol = psi4.core.Molecule.from_schema(findif_model.molecule.dict(), nonphysical=True)
+    sbasis = "def2-svp" if (findif_model.model.basis == "(auto)") else findif_model.model.basis
+    basis = psi4.core.BasisSet.build(mol, "ORBITAL", sbasis, quiet=True)
+    wfn = psi4.core.Wavefunction(mol, basis)
+    if hasattr(findif_model.provenance, "module"):
+        wfn.set_module(findif_model.provenance.module)
+
+    # setting CURRENT E/G/H on wfn below catches Wfn.energy_, gradient_, hessian_
+    # setting CURRENT E/G/H on core below is authoritative P::e record
+    for qcv, val in findif_model.extras["qcvars"].items():
+        if qcv in ["CURRENT DIPOLE", "SCF DIPOLE"]:
+            val = np.array(val).reshape(-1,1)
+        for obj in [psi4.core, wfn]:
+            obj.set_variable(qcv, val)
+
+    return wfn
 
 
 def vpt2(mol: psi4.core.Molecule, **kwargs) -> Dict:

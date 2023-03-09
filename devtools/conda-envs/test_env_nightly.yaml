@@ -1,0 +1,26 @@
+name: test-nightly
+channels:
+  - psi4/label/dev
+  - defaults
+  - qcarchive/label/next
+  - conda-forge
+dependencies:
+  - psi4
+  - qcfractal
+  - qcportal
+  - qcelemental
+  - intel-openmp
+  
+    # Base depends
+  - python
+  - pip
+
+    # Testing
+  - pytest
+  - pytest-cov
+  - codecov
+
+    # Pip-only installs
+  #- pip:
+  #  - codecov
+
