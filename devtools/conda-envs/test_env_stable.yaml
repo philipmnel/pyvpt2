@@ -6,7 +6,7 @@ channels:
   - conda-forge
 dependencies:
   - psi4
-  - qcfractal
+  - qcfractal=0.50b7
   - qcportal
   - qcelemental
   - intel-openmp
