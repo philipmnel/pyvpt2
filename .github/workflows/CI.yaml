@@ -1,4 +1,4 @@
-name: Weekly CI
+name: CI
 
 on:
   push:
