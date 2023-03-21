@@ -214,10 +214,8 @@ def vpt2(mol: psi4.core.Molecule, **kwargs) -> Dict:
     mol.fix_orientation(True)
     rotor_type = mol.rotor_type()
 
-    if (rotor_type in ["RT_LINEAR", "RT_ASYMMETRIC_TOP"]) == False:
-        print("Error: pyVPT2 can only be run on linear or asymmetric top molecules.")
-        print("Rotor type is " + rotor_type)
-        return {}
+    if not (rotor_type in ["RT_LINEAR", "RT_ASYMMETRIC_TOP"]):
+        raise Exception("pyVPT2 can only be run on linear or asymmetric tops. Detected rotor type is {}".format(rotor_type))
 
     plan = harmonic(mol, **kwargs)
     if kwargs.get("RETURN_PLAN", False):
