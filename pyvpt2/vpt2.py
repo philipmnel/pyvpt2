@@ -2,6 +2,7 @@
 import psi4
 import numpy as np
 import itertools
+import math
 from typing import Dict, TYPE_CHECKING, Tuple, Union, List
 from qcelemental.models import AtomicResult
 from psi4.driver.task_base import AtomicComputer
@@ -191,6 +192,59 @@ def _findif_schema_to_wfn(findif_model: AtomicResult) -> psi4.core.Wavefunction:
 
     return wfn
 
+def check_rotor(mol: psi4.core.Molecule):
+    """
+    Check if rotor type is linear or asymmetric top.
+    Can't use the built-in psi4.core.Molecule function since its degeneracy
+    tolerance is way too tight. If I switched to qcdb molecule objects in
+    the future, this can probably be removed.
+
+    Parameters
+    ----------
+    mol: psi4.core.Molecule
+        Input molecule    
+
+    Returns
+    -------
+    str
+        rotor type
+    """    
+
+    tol = 1e-6
+    rot_const = mol.rotational_constants().np
+    for i in range(3):
+        if rot_const[i] is None:
+            rot_const[i] = 0.0
+
+    # Determine degeneracy of rotational constants.
+    degen = 0
+    for i in range(2):
+        for j in range(i + 1, 3):
+            if degen >= 2:
+                continue
+            rabs = math.fabs(rot_const[i] - rot_const[j])
+            tmp = rot_const[i] if rot_const[i] > rot_const[j] else rot_const[j]
+            if rabs > 1e-14:
+                rel = rabs / tmp
+            else:
+                rel = 0.0
+            if rel < tol:
+                degen += 1
+
+    # Determine rotor type
+    if mol.natom() == 1:
+        rotor_type = 'RT_ATOM'
+    elif rot_const[0] == 0.0:
+        rotor_type = 'RT_LINEAR'          # 0  <  IB == IC      inf > B == C
+    elif degen == 2:
+        rotor_type = 'RT_SPHERICAL_TOP'   # IA == IB == IC       A == B == C
+    elif degen == 1:
+        rotor_type = 'RT_SYMMETRIC_TOP'   # IA <  IB == IC       A >  B == C --or--
+                                            # IA == IB <  IC       A == B >  C
+    else:
+        rotor_type = 'RT_ASYMMETRIC_TOP'  # IA <  IB <  IC       A >  B >  C
+    return rotor_type
+
 
 def vpt2(mol: psi4.core.Molecule, **kwargs) -> Dict:
     """
@@ -212,7 +266,7 @@ def vpt2(mol: psi4.core.Molecule, **kwargs) -> Dict:
     mol.move_to_com()
     mol.fix_com(True)
     mol.fix_orientation(True)
-    rotor_type = mol.rotor_type()
+    rotor_type = check_rotor(mol)
 
     if not (rotor_type in ["RT_LINEAR", "RT_ASYMMETRIC_TOP"]):
         raise Exception("pyVPT2 can only be run on linear or asymmetric tops. Detected rotor type is {}".format(rotor_type))
