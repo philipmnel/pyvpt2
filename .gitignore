@@ -108,4 +108,4 @@ ENV/
 # Psi4 files
 timer.dat
 psi*
-stdout
+stdout*
