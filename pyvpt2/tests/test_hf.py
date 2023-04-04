@@ -33,10 +33,10 @@ def test_hf_vpt2(driver):
     cfour_zpve_corr = -13.595
 
     results = pyvpt2.vpt2(mol, **options)
-    omega = results["Harmonic Freq"][-1]
-    anharmonic = results["Freq Correction"][-1]
-    harm_zpve  = results["Harmonic ZPVE"]
-    zpve_corr = results["ZPVE Correction"]
+    omega = results.omega[-1]
+    anharmonic = results.nu[-1] - omega
+    harm_zpve  = results.harmonic_zpve
+    zpve_corr = results.anharmonic_zpve - harm_zpve
 
     assert psi4.compare_values(cfour_omega, omega, 0.5)
     assert psi4.compare_values(cfour_anharmonic, anharmonic, 0.5)

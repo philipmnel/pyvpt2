@@ -15,6 +15,7 @@ from qcelemental.models import AtomicResult
 from . import quartic
 from .constants import *
 from .fermi_solver import Interaction, State, fermi_solver
+from .result import VPTResult
 
 logger = logging.getLogger(__name__)
 
@@ -527,29 +528,42 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
             band[i, j] += 0.5 * (chi[i,k] + chi[j,k])
         band[j, i] = band[i, j]
 
+    extras = {}
     if kwargs["FERMI"] and kwargs["GVPT2"]:
         deperturbed = anharmonic.copy()
+        extras.update({"Deperturbed Freq": deperturbed})
         fermi_nu, fermi_ind = process_fermi_solver(fermi_list, v_ind, anharmonic, overtone, band, phi_ijk)
-        #for ind in fermi_ind:
-        #    anharmonic[ind] = fermi_nu[ind]
-        # this was already done in-place in process_fermi_solver
 
-    result_dict = {}
-    result_dict["Harmonic Freq"] = omega.tolist()
-    result_dict["Freq Correction"] = (anharmonic - omega).tolist()
-    result_dict["Anharmonic Freq"] = anharmonic.tolist()
-    result_dict["Harmonic ZPVE"] = harm["zpve"]
-    result_dict["ZPVE Correction"] = zpve - harm["zpve"]
-    result_dict["Anharmonic ZPVE"] = zpve
-    result_dict["Quartic Schema"] = quartic_result
 
-    if kwargs["FERMI"] and kwargs["GVPT2"]:
-        result_dict["Deperturbed Freq"] = deperturbed.tolist()
+    #result_dict = {}
+    #result_dict["Harmonic Freq"] = omega.tolist()
+    #result_dict["Freq Correction"] = (anharmonic - omega).tolist()
+    #result_dict["Anharmonic Freq"] = anharmonic.tolist()
+    #result_dict["Harmonic ZPVE"] = harm["zpve"]
+    #result_dict["ZPVE Correction"] = zpve - harm["zpve"]
+    #result_dict["Anharmonic ZPVE"] = zpve
+    #result_dict["Quartic Schema"] = quartic_result
 
-    print_result(result_dict, v_ind)
-    result_dict["Quartic Schema"] = quartic_result.dict(encoding="json")
+    #if kwargs["FERMI"] and kwargs["GVPT2"]:
+    #    result_dict["Deperturbed Freq"] = deperturbed.tolist()
 
-    return result_dict
+    #print_result(result_dict, v_ind)
+    #result_dict["Quartic Schema"] = quartic_result.dict(encoding="json")
+    ret = VPTResult(
+        molecule = quartic_result.molecule,
+        model = quartic_result.model,
+        keywords = kwargs,
+        omega = omega,
+        nu = anharmonic,
+        harmonic_zpve = harm["zpve"],
+        anharmonic_zpve = zpve,
+        chi = chi,
+        phi_ijk = phi_ijk,
+        phi_iijj = phi_iijj,
+        extras = extras
+        )
+
+    return ret
 
 def process_fermi_solver(fermi_list: List, v_ind: List, nu: np.ndarray, overtone:np.ndarray, band:np.ndarray, phi_ijk:np.ndarray) -> Tuple[np.ndarray, List]:
     """
