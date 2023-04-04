@@ -1,19 +1,20 @@
 # Library imports:
-import psi4
-import numpy as np
 import itertools
+import logging
 import math
-from typing import Dict, TYPE_CHECKING, Tuple, Union, List
-from qcelemental.models import AtomicResult
-from psi4.driver.task_base import AtomicComputer
+from typing import TYPE_CHECKING, Dict, List, Tuple, Union
+
+import numpy as np
+import psi4
 from psi4.driver.driver_cbs import CompositeComputer
 from psi4.driver.driver_findif import FiniteDifferenceComputer
-import logging
+from psi4.driver.task_base import AtomicComputer
+from qcelemental.models import AtomicResult
 
 #Local imports:
 from . import quartic
-from .fermi_solver import fermi_solver, Interaction, State
 from .constants import *
+from .fermi_solver import Interaction, State, fermi_solver
 
 logger = logging.getLogger(__name__)
 

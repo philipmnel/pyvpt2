@@ -1,6 +1,8 @@
-import pyvpt2
 import psi4
 import pytest
+
+import pyvpt2
+
 
 def test_h2co_vpt2():
     

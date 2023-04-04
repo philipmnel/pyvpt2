@@ -1,16 +1,17 @@
 # Library imports:
-import psi4
-import numpy as np
+import copy
 import itertools
 import logging
-import copy
 from functools import partial
-from typing import Any, Dict, Iterator, List, Optional, TYPE_CHECKING, Tuple
-from pydantic import validator
-from qcelemental.models import DriverEnum, AtomicResult
-from psi4.driver.task_base import BaseComputer, AtomicComputer
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple
+
+import numpy as np
+import psi4
 from psi4.driver.driver_cbs import CompositeComputer, composite_procedures
+from psi4.driver.task_base import AtomicComputer, BaseComputer
 from psi4.driver.task_planner import expand_cbs_methods
+from pydantic import validator
+from qcelemental.models import AtomicResult, DriverEnum
 
 # Local imports:
 from .constants import wave_to_hartree

@@ -1,7 +1,9 @@
-import psi4
-import pyvpt2
-import pytest
 import time
+
+import psi4
+import pytest
+
+import pyvpt2
 
 no_qcfractal = False
 try:

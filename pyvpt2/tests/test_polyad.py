@@ -1,6 +1,8 @@
-from pyvpt2.fermi_solver import Polyad, Interaction, State
-from psi4 import compare_values
 import pytest
+from psi4 import compare_values
+
+from pyvpt2.fermi_solver import Interaction, Polyad, State
+
 
 def test_polyad_1():
 

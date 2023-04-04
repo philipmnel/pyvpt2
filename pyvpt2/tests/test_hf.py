@@ -1,6 +1,8 @@
 import psi4
-import pyvpt2
 import pytest
+
+import pyvpt2
+
 
 @pytest.mark.parametrize("driver", ["ENERGY", "GRADIENT", "HESSIAN"])
 def test_hf_vpt2(driver):

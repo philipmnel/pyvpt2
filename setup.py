@@ -3,7 +3,9 @@ pyVPT2
 Package to calculate VPT2 anharmonic corrections.
 """
 import sys
-from setuptools import setup, find_packages
+
+from setuptools import find_packages, setup
+
 import versioneer
 
 short_description = "Package to calculate VPT2 anharmonic corrections.".split("\n")[0]

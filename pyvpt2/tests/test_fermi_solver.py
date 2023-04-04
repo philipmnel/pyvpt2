@@ -1,8 +1,9 @@
 import numpy as np
-import pyvpt2
-from pyvpt2.fermi_solver import fermi_solver, Interaction, State
-from psi4 import compare_values
 import pytest
+from psi4 import compare_values
+
+import pyvpt2
+from pyvpt2.fermi_solver import Interaction, State, fermi_solver
 
 
 def test_identify_fermi():
