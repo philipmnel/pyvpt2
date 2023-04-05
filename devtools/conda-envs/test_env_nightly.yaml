@@ -10,7 +10,7 @@ dependencies:
   - qcportal
   - qcelemental
   - intel-openmp
-  
+
     # Base depends
   - python
   - pip
@@ -23,4 +23,3 @@ dependencies:
     # Pip-only installs
   #- pip:
   #  - codecov
-

@@ -1,13 +1,15 @@
-import pyvpt2
 import psi4
 import pytest
 
+import pyvpt2
+
+
 def test_h2co_vpt2():
-    
+
     mol = psi4.geometry("""
     nocom
     noreorient
-    C       
+    C
     O 1 R1
     H 1 R2 2 A1
     H 1 R3 2 A2 3 D

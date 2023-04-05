@@ -1,6 +1,8 @@
-import numpy as np
-from typing import List, Dict
 from dataclasses import dataclass
+from typing import Dict, List
+
+import numpy as np
+
 
 @dataclass
 class State:
@@ -39,8 +41,8 @@ class Interaction:
     ftype: int
 
 def fermi_solver(interaction_list: List) -> Dict:
-    """ 
-    Main loop to correct Fermi resonances. Constructs polyads from the interaction list 
+    """
+    Main loop to correct Fermi resonances. Constructs polyads from the interaction list
     and then solves the effective Hamiltonian for each.
 
     Parameters
@@ -63,7 +65,7 @@ def fermi_solver(interaction_list: List) -> Dict:
             elif interaction.right.state in polyad.state_list:
                 polyad.add(interaction)
                 flag = True
-            
+
         if flag == False:
             polyad_list.append(Polyad(interaction))
 
@@ -71,13 +73,13 @@ def fermi_solver(interaction_list: List) -> Dict:
     for polyad in polyad_list:
         state_list.update(polyad.solve())
 
-    return state_list 
+    return state_list
 
 
 class Polyad:
     """
     Class to construct an interaction polyad and solve the effective Hamiltonian
-    
+
     Attributes
     ----------
     state_list : set
@@ -92,9 +94,9 @@ class Polyad:
         effective Hamiltonian
     """
     def __init__(self, interaction: Interaction):
-        """ 
+        """
         Initialize polyad with first interaction
-        
+
         Parameters
         ----------
         interaction : Interaction
@@ -107,9 +109,9 @@ class Polyad:
         self.phi_list = {(left.state, right.state): (interaction.phi, interaction.ftype)}
 
     def add(self, interaction: Interaction):
-        """ 
+        """
         Add an interaction to the state list
-        
+
         Parameters
         ----------
         interaction : Interaction
@@ -122,15 +124,15 @@ class Polyad:
         self.phi_list.update({(left.state, right.state): (interaction.phi, interaction.ftype)})
 
     def build_hamiltonian(self):
-        """ 
+        """
         Build effective hamiltonian from state list
         """
-        self.state_list_enum = {state: i for i, state in enumerate(self.state_list)} 
+        self.state_list_enum = {state: i for i, state in enumerate(self.state_list)}
         dim = len(self.state_list_enum.keys())
         self.H = np.zeros((dim, dim))
         for state, i in self.state_list_enum.items():
             self.H[i, i] = self.nu_list[state]
-        
+
         for states, interaction in self.phi_list.items():
             i = self.state_list_enum[states[0]]
             j = self.state_list_enum[states[1]]
@@ -140,11 +142,11 @@ class Polyad:
             elif interaction[1] == 2:
                 self.H[i, j] = 1/(np.sqrt(2) * 2) * interaction[0]
                 self.H[j, i] = self.H[i, j]
-        
+
     def solve(self) -> Dict:
         """
         Solve hamiltonian
-        
+
         Returns
         -------
         Dict
@@ -157,4 +159,3 @@ class Polyad:
 
         freqs = { state: eval_dict[ind] for (state,ind) in self.state_list_enum.items() }
         return freqs
-        
