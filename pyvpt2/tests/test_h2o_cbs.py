@@ -36,10 +36,10 @@ def test_h2o_cbs_vpt2(driver):
     ref_zpve_corr = -69.5146
 
     results = pyvpt2.vpt2(mol, **options)
-    omega = results["Harmonic Freq"][-3:]
-    anharmonic = results["Freq Correction"][-3:]
-    harm_zpve  = results["Harmonic ZPVE"]
-    zpve_corr = results["ZPVE Correction"]
+    omega = results.omega[-3:]
+    anharmonic = results.nu[-3:] - omega
+    harm_zpve  = results.harmonic_zpve
+    zpve_corr = results.anharmonic_zpve - harm_zpve
 
     assert psi4.compare_values(ref_omega, omega, 0.5)
     assert psi4.compare_values(ref_anharmonic, anharmonic, 0.5)

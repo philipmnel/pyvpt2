@@ -41,17 +41,12 @@ def test_h2co_vpt2():
     ref_zpve_corr = -77.2184
 
     results = pyvpt2.vpt2(mol, **options)
-    omega = results["Harmonic Freq"][-6:]
-    anharmonic = results["Freq Correction"][-6:]
-    depertubed = results["Deperturbed Freq"][-6:]
+    omega = results.omega[-6:]
+    anharmonic = results.nu[-6:] - omega
+    harm_zpve  = results.harmonic_zpve
+    zpve_corr = results.anharmonic_zpve - harm_zpve
+    depertubed = results.extras["Deperturbed Freq"][-6:]
     depertubed = [depertubed[i] - omega[i] for i in range(len(omega))]
-    harm_zpve  = results["Harmonic ZPVE"]
-    zpve_corr = results["ZPVE Correction"]
-    print(omega)
-    print(anharmonic)
-    print(harm_zpve)
-    print(zpve_corr)
-    print(depertubed)
 
     assert psi4.compare_values(ref_omega, omega, 0.1)
     assert psi4.compare_values(ref_anharmonic, anharmonic, 0.1)
