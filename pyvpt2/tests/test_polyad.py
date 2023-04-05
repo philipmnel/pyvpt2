@@ -10,7 +10,7 @@ def test_polyad_1():
     nu = [3106.1, 3152.0]
     ref = {(0,): 3097.2, (1,1): 3160.8}
 
-    interaction = Interaction(left=State(state=(0,), nu=nu[0]), right=State(state=(1,1), 
+    interaction = Interaction(left=State(state=(0,), nu=nu[0]), right=State(state=(1,1),
                             nu=nu[1]), phi=phi_ijk, ftype=1)
     test = Polyad(interaction)
     state_list = test.solve()
@@ -23,7 +23,7 @@ def test_polyad_2():
     nu = [3095.5, 3068.0]
     ref = {(1,2): 3047.2, (0,): 3116.3}
 
-    interaction = Interaction(left=State(state=(0,), nu=nu[0]), right=State(state=(1,2), 
+    interaction = Interaction(left=State(state=(0,), nu=nu[0]), right=State(state=(1,2),
                             nu=nu[1]), phi=phi_ijk, ftype=2)
     test = Polyad(interaction)
     state_list = test.solve()
@@ -33,9 +33,9 @@ def test_polyad_2():
 def test_polyad_3():
 
     ref = {(3,6): 2711.5, (5,): 2851.5, (2,6): 3004.3}
-    interaction1 = Interaction(left=State(state=(5,), nu=2828.0), right=State(state=(2,6), 
+    interaction1 = Interaction(left=State(state=(5,), nu=2828.0), right=State(state=(2,6),
                             nu=2987.4), phi=-146.7, ftype=2)
-    interaction2 = Interaction(left=State(state=(5,), nu=2828.0), right=State(state=(3,6), 
+    interaction2 = Interaction(left=State(state=(5,), nu=2828.0), right=State(state=(3,6),
                             nu=2751.9), phi=185.8, ftype=2)
 
     test = Polyad(interaction1)

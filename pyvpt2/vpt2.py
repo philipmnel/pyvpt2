@@ -25,13 +25,13 @@ def harmonic(mol: psi4.core.Molecule, **kwargs) -> TaskComputers:
 
     Parameters
     ----------
-    mol : psi4.core.Molecule 
+    mol : psi4.core.Molecule
         Input molecule
-    
+
     Returns
     -------
-    TaskComputers 
-        Computer for reference harmonic calculation 
+    TaskComputers
+        Computer for reference harmonic calculation
     """
 
     method = kwargs["METHOD"]
@@ -90,7 +90,7 @@ def process_harmonic(wfn: psi4.core.Wavefunction) -> Dict:
     harm["modes_unitless"] = modes_unitless # Unitless normal modes, used for displacements
     harm["gamma"] = gamma # Unitless scaling factor
     harm["q"] = q # Normalized, mass weighted normal modes, used for coord transformations
-    harm["zpve"] = zpve # Zero point vibrational correction 
+    harm["zpve"] = zpve # Zero point vibrational correction
 
     return harm
 
@@ -203,13 +203,13 @@ def check_rotor(mol: psi4.core.Molecule):
     Parameters
     ----------
     mol: psi4.core.Molecule
-        Input molecule    
+        Input molecule
 
     Returns
     -------
     str
         rotor type
-    """    
+    """
 
     tol = 1e-6
     rot_const = mol.rotational_constants().np
@@ -254,7 +254,7 @@ def vpt2(mol: psi4.core.Molecule, **kwargs) -> Dict:
     Parameters
     ----------
     mol: psi4.core.Molecule
-        Input molecule    
+        Input molecule
 
     Returns
     -------
@@ -309,7 +309,7 @@ def vpt2_from_harmonic(harmonic_result: AtomicResult, **kwargs) -> quartic.Quart
     method = kwargs.get("METHOD2", kwargs.get("METHOD")) # If no method2, then method (default)
     kwargs = {"options": kwargs, "harm": harm}
     plan = quartic.task_planner(method=method, molecule=mol, **kwargs)
-    
+
     return plan
 
 def identify_fermi(omega: np.ndarray, phi_ijk: np.ndarray, n_modes: np.ndarray, v_ind:  np.ndarray, **kwargs) -> List:
@@ -374,7 +374,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
     ----------
     quartic_result : AtomicResult
         Results from quartic finite difference calculation
-    
+
     Returns
     -------
     Dict
@@ -409,13 +409,13 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
 
                 for k in v_ind:
                     if (k,(i,i)) in fermi_list:
-                        temp = (phi_ijk[i, i, k] ** 2 ) / 2 
+                        temp = (phi_ijk[i, i, k] ** 2 ) / 2
                         temp *= (1 / (2 * omega[i] + omega[k]) + 4 / omega[k])
                         chi[i,i] -= temp
                     else:
                         temp = ((8 * omega[i] ** 2 - 3 * omega[k] ** 2) * phi_ijk[i, i, k] ** 2)
                         temp /= (omega[k] * (4 * omega[i] ** 2 - omega[k] ** 2))
-                        chi[i, i] -=  temp 
+                        chi[i, i] -=  temp
 
                 chi[i, i] /= 16
 
@@ -533,7 +533,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
         #for ind in fermi_ind:
         #    anharmonic[ind] = fermi_nu[ind]
         # this was already done in-place in process_fermi_solver
-        
+
     result_dict = {}
     result_dict["Harmonic Freq"] = omega.tolist()
     result_dict["Freq Correction"] = (anharmonic - omega).tolist()
@@ -559,7 +559,7 @@ def process_fermi_solver(fermi_list: List, v_ind: List, nu: np.ndarray, overtone
     ----------
     fermi_list : list
         List of fermi resonances
-    v_ind : list    
+    v_ind : list
         List of vibrational indices
     nu : np.ndarray
         Anharmonic deperturbed frequencies
@@ -577,13 +577,13 @@ def process_fermi_solver(fermi_list: List, v_ind: List, nu: np.ndarray, overtone
     List
         Indices of variationally corrected frequencies
 
-    """    
+    """
 
     interaction_list = []
     # process fermi1 resonances
     for [i, j] in itertools.permutations(v_ind, 2):
         if (i, (j,j)) in fermi_list:
-            interaction = Interaction(left=State(state=(i,), nu=nu[i]), right=State(state=(j,j), 
+            interaction = Interaction(left=State(state=(i,), nu=nu[i]), right=State(state=(j,j),
                             nu=overtone[j]), phi=phi_ijk[i, j, j], ftype=1)
             interaction_list.append(interaction)
 
@@ -592,7 +592,7 @@ def process_fermi_solver(fermi_list: List, v_ind: List, nu: np.ndarray, overtone
         if (i, (j,k)) in fermi_list:
             if j > k: continue # avoid double counting
 
-            interaction = Interaction(left=State(state=(i,), nu=nu[i]), right=State(state=(j,k), 
+            interaction = Interaction(left=State(state=(i,), nu=nu[i]), right=State(state=(j,k),
                             nu=band[j,k]), phi=phi_ijk[i, j, k], ftype=2)
             interaction_list.append(interaction)
 

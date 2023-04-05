@@ -14,7 +14,7 @@ except:
 @pytest.mark.skipif(no_qcfractal, reason="QCFractal not installed")
 @pytest.mark.parametrize("driver", ["ENERGY", "GRADIENT"]) #HESSIAN harmonics currently broken
 def test_h2o_snowflake_vpt2(driver):
-    
+
     snowflake = FractalSnowflake()
     client = snowflake.client()
 
@@ -25,7 +25,7 @@ def test_h2o_snowflake_vpt2(driver):
     O
     H 1 R1
     H 1 R2 2 A
-   
+
     A         =  106.3819454243
     R1        =    0.9392155213
     R2        =    0.9392155213
@@ -46,7 +46,7 @@ def test_h2o_snowflake_vpt2(driver):
             'RETURN_PLAN': True}
 
     ref_omega = [1747.4491, 4129.8877, 4230.4755]
-    ref_anharmonic = [-53.8382, -157.1904, -171.4518] 
+    ref_anharmonic = [-53.8382, -157.1904, -171.4518]
     ref_harm_zpve = 5053.9062
     ref_zpve_corr = -69.5146
 

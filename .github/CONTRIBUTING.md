@@ -1,7 +1,7 @@
 # How to contribute
 
 We welcome contributions from external contributors, and this document
-describes how to merge code changes into this pyvpt2. 
+describes how to merge code changes into this pyvpt2.
 
 ## Getting Started
 

@@ -13,7 +13,7 @@ def test_hf_vpt2(driver):
 
     H
     F 1 R1
-   
+
     R1 = 0.920853
     """)
 
@@ -22,7 +22,7 @@ def test_hf_vpt2(driver):
                 'scf_type': 'direct',
                 'puream': True})
 
-    
+
     options = {'METHOD': 'scf/6-31g',
             'FD': driver,
             'DISP_SIZE': 0.02}

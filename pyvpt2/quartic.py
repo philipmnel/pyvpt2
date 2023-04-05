@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 def check_cubic(phi_ijk: np.ndarray, v_ind: List[int]) -> np.ndarray:
     """
-    Checks cubic force constants for any numerical inconsistencies, symmetrizes results, 
+    Checks cubic force constants for any numerical inconsistencies, symmetrizes results,
     prints results to output file
 
     Parameters
@@ -99,14 +99,14 @@ def _displace_cart(geom: np.ndarray, modes: np.ndarray, i_m: Iterator[Tuple], di
     Parameters
     ----------
     geom : np.ndarray
-        Molecular geometry 
+        Molecular geometry
     modes : np.ndarray
         Cartesian normal modes (unitless)
     i_m : Iterator[Tuple]
         (displacement index, displacement steps)
-    disp_size : float 
+    disp_size : float
         Displacement size (reduced unitless coordinates)
-    
+
     Returns
     -------
     np.ndarray
@@ -158,7 +158,7 @@ def _geom_generator(mol: psi4.core.Molecule, data: Dict, mode: int) -> Dict:
             "disp2": ((-1, -1), (1, -1), (-1, 1), (1, 1)),
             "disp3": ((-1, -1, -1), (-1, -1, 1), (-1, 1, -1), (1, -1, -1), (1, 1, -1), (1, -1, 1),
                     (-1, 1, 1), (1, 1, 1))
-            },    
+            },
         1: {
             "disp1": ((-3, ), (-1, ), (1, ), (3, )),
             "disp2": ((-1, -1), (1, -1), (-1, 1), (1, 1))
@@ -235,7 +235,7 @@ def assemble_quartic_from_energies(findifrec: Dict) -> Tuple[np.ndarray, np.ndar
 
     for i in v_ind:
 
-        E3p = energies[f"{i}: 3"] 
+        E3p = energies[f"{i}: 3"]
         Ep = energies[f"{i}: 1"]
         En = energies[f"{i}: -1"]
         E3n = energies[f"{i}: -3"]
@@ -247,7 +247,7 @@ def assemble_quartic_from_energies(findifrec: Dict) -> Tuple[np.ndarray, np.ndar
 
         phi_iijj[i, i] = (E2p - 4 * Ep + 6 * E0 - 4 * En + E2n) / (disp_size ** 4)
 
-    
+
     for [i, j] in itertools.permutations(v_ind, 2):
 
         Epp = energies[f"{i}: 1, {j}: 1"]
@@ -357,7 +357,7 @@ def assemble_quartic_from_gradients(findifrec: Dict) -> Tuple[np.ndarray, np.nda
         grad_np = grad[f"{i}: -1, {j}: 1"]
         grad_pn = grad[f"{i}: 1, {j}: -1"]
 
-        phi_iijj[i, j] = grad_pp[i] + grad_pn[i] - 2 * grad_p[i] 
+        phi_iijj[i, j] = grad_pp[i] + grad_pn[i] - 2 * grad_p[i]
         phi_iijj[i, j] -= grad_np[i] + grad_nn[i] - 2 * grad_n[i]
         phi_iijj[i, j] /= 2 * disp_size ** 3
 
@@ -489,7 +489,7 @@ class QuarticComputer(BaseComputer):
         self.method = data['method']
 
         mode_dict = {"ENERGY": 0, "GRADIENT": 1, "HESSIAN": 2}
-        self.metameta['mode'] = mode_dict[data['options']['FD']] 
+        self.metameta['mode'] = mode_dict[data['options']['FD']]
 
         if self.metameta['mode'] == 0:
             self.metameta['proxy_driver'] = 'energy'
@@ -667,7 +667,7 @@ def task_planner(method: str, molecule: psi4.core.Molecule, **kwargs) -> Quartic
         Quantum chemistry method
     molecule: psi4.core.Molecule
         Input molecule
-    
+
     Returns
     -------
     QuarticComputer

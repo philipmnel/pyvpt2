@@ -6,7 +6,7 @@ import pyvpt2
 
 @pytest.mark.parametrize("driver", ["ENERGY", "GRADIENT", "HESSIAN"])
 def test_h2o_vpt2(driver):
-    
+
     mol = psi4.geometry("""
     nocom
     noreorient
@@ -14,7 +14,7 @@ def test_h2o_vpt2(driver):
     O
     H 1 R1
     H 1 R2 2 A
-   
+
     R1    =        0.94731025924472878064
     R2    =        0.94731025924472878064
     A    =      105.5028950965639
@@ -33,7 +33,7 @@ def test_h2o_vpt2(driver):
             'DISP_SIZE': 0.05}
 
     cfour_omega = [1826.8154, 4060.2203, 4177.8273]
-    cfour_anharmonic = [-54.0635, -158.2345, -177.9707] 
+    cfour_anharmonic = [-54.0635, -158.2345, -177.9707]
     cfour_harm_zpve = 5032.431
     cfour_zpve_corr = -70.352
 
