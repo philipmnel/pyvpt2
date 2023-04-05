@@ -61,6 +61,7 @@ def process_harmonic(wfn: psi4.core.Wavefunction) -> Dict:
     kforce = frequency_analysis["k"].data
     trv = frequency_analysis["TRV"].data
     q = frequency_analysis["q"].data
+    intensities = frequency_analysis["IR_intensity"].data
     n_modes = len(trv)
 
     omega = omega.real
@@ -92,6 +93,7 @@ def process_harmonic(wfn: psi4.core.Wavefunction) -> Dict:
     harm["gamma"] = gamma # Unitless scaling factor
     harm["q"] = q # Normalized, mass weighted normal modes, used for coord transformations
     harm["zpve"] = zpve # Zero point vibrational correction
+    harm["intensities"] = intensities # Harmonic IR intensities (km mol-1)
 
     return harm
 
@@ -534,21 +536,6 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
         extras.update({"Deperturbed Freq": deperturbed})
         fermi_nu, fermi_ind = process_fermi_solver(fermi_list, v_ind, anharmonic, overtone, band, phi_ijk)
 
-
-    #result_dict = {}
-    #result_dict["Harmonic Freq"] = omega.tolist()
-    #result_dict["Freq Correction"] = (anharmonic - omega).tolist()
-    #result_dict["Anharmonic Freq"] = anharmonic.tolist()
-    #result_dict["Harmonic ZPVE"] = harm["zpve"]
-    #result_dict["ZPVE Correction"] = zpve - harm["zpve"]
-    #result_dict["Anharmonic ZPVE"] = zpve
-    #result_dict["Quartic Schema"] = quartic_result
-
-    #if kwargs["FERMI"] and kwargs["GVPT2"]:
-    #    result_dict["Deperturbed Freq"] = deperturbed.tolist()
-
-    #print_result(result_dict, v_ind)
-    #result_dict["Quartic Schema"] = quartic_result.dict(encoding="json")
     ret = VPTResult(
         molecule = quartic_result.molecule,
         model = quartic_result.model,
@@ -557,12 +544,14 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
         nu = anharmonic,
         harmonic_zpve = harm["zpve"],
         anharmonic_zpve = zpve,
+        harmonic_intensity=harm["intensities"],
         chi = chi,
         phi_ijk = phi_ijk,
         phi_iijj = phi_iijj,
         extras = extras
         )
 
+    print_result(ret, v_ind)
     return ret
 
 def process_fermi_solver(fermi_list: List, v_ind: List, nu: np.ndarray, overtone:np.ndarray, band:np.ndarray, phi_ijk:np.ndarray) -> Tuple[np.ndarray, List]:
@@ -621,24 +610,24 @@ def process_fermi_solver(fermi_list: List, v_ind: List, nu: np.ndarray, overtone
 
     return nu, updated_indices
 
-def print_result(result_dict: Dict, v_ind: np.ndarray):
+def print_result(results: VPTResult, v_ind: np.ndarray):
     """
     Prints VPT2 results
 
     Parameters
     ----------
-    result_dict : dict
-        Dictionary of VPT2 results
+    results : VPT2
+        Dataclass of VPT2 results
     v_ind : np.ndarray
         List of vibrational indices
     """
 
-    omega = result_dict["Harmonic Freq"]
-    anharmonic = result_dict["Freq Correction"]
-    harm_zpve = result_dict["Harmonic ZPVE"]
-    zpve = result_dict["Anharmonic ZPVE"]
-    phi_ijk = result_dict["Quartic Schema"].dict()["extras"]["phi_ijk"]
-    phi_iijj = result_dict["Quartic Schema"].dict()["extras"]["phi_iijj"]
+    omega = results.omega
+    anharmonic = results.nu
+    harm_zpve = results.harmonic_zpve
+    zpve = results.anharmonic_zpve
+    phi_ijk = results.phi_ijk
+    phi_iijj = results.phi_iijj
 
     print("\n\nCubic (cm-1):")
     for [i,j,k] in itertools.product(v_ind, repeat=3):
@@ -662,7 +651,7 @@ def print_result(result_dict: Dict, v_ind: np.ndarray):
     print("\nFundamentals (cm-1):")
     header = ["", "Harmonic", "Anharmonic", "Anharmonic"]
     header2 = ["Mode", "Frequency", "Correction", "Frequency"]
-    rows = [[i+1, omega[i], anharmonic[i], omega[i] + anharmonic[i]] for i in v_ind]
+    rows = [[i+1, omega[i], anharmonic[i] - omega[i], anharmonic[i]] for i in v_ind]
     print("{: >8} {: >20} {: >20} {: >20}".format(*header))
     print("{: >8} {: >20} {: >20} {: >20}".format(*header2))
     for row in rows:
