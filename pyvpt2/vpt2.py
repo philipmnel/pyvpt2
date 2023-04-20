@@ -73,7 +73,9 @@ def process_harmonic(wfn: psi4.core.Wavefunction) -> Dict:
 
     for i in range(n_modes):
         if trv[i] == "V" and omega[i] != 0.0:
-            gamma[i] = omega_au[i] / kforce_au[i]
+            # max out the gammas at 0.1 to prevent low-freq
+            # modes from taking way too big steps
+            gamma[i] = min(omega_au[i] / kforce_au[i], 0.1)
             modes_unitless[:, i] *= np.sqrt(gamma[i])
             v_ind.append(i)
         else:
