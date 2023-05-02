@@ -1,9 +1,8 @@
 name: test-nightly
 channels:
-  - psi4/label/dev
-  - defaults
   - qcarchive/label/next
   - conda-forge
+
 dependencies:
   - psi4
   - qcfractal=0.50b7
