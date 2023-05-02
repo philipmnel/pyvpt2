@@ -1,15 +1,15 @@
 name: test-nightly
 channels:
-  - psi4/label/dev
-  - defaults
   - qcarchive/label/next
   - conda-forge
+  - conda-forge/label/libint_dev
+  - conda-forge/label/psi4_dev
+
 dependencies:
   - psi4
   - qcfractal=0.50b7
   - qcportal
   - qcelemental
-  - intel-openmp
 
     # Base depends
   - python
