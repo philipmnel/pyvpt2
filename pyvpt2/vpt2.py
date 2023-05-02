@@ -17,7 +17,7 @@ from .constants import *
 from .fermi_solver import Interaction, State, fermi_solver
 from .result import VPTResult
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(f"psi4.{__name__}")
 
 TaskComputers = Union[AtomicComputer, CompositeComputer, FiniteDifferenceComputer]
 def harmonic(mol: psi4.core.Molecule, **kwargs) -> TaskComputers:

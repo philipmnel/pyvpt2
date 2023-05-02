@@ -19,7 +19,7 @@ from .constants import wave_to_hartree
 if TYPE_CHECKING:
     import qcportal
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(f"psi4.{__name__}")
 
 def check_cubic(phi_ijk: np.ndarray, v_ind: List[int]) -> np.ndarray:
     """
