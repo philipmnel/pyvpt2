@@ -7,7 +7,7 @@ channels:
 
 dependencies:
   - psi4
-  - qcfractal=0.50b7
+  - qcfractal
   - qcportal
   - qcelemental
 
