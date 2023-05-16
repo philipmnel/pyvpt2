@@ -12,7 +12,7 @@ except:
     no_qcfractal = True
 
 @pytest.mark.skipif(no_qcfractal, reason="QCFractal not installed")
-@pytest.mark.parametrize("driver", ["ENERGY", "GRADIENT"]) #HESSIAN harmonics currently broken
+@pytest.mark.parametrize("driver", ["ENERGY", "GRADIENT", "HESSIAN"])
 def test_h2o_snowflake_vpt2(driver):
 
     snowflake = FractalSnowflake()
