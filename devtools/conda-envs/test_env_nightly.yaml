@@ -1,9 +1,9 @@
 name: test-nightly
 channels:
   - qcarchive/label/next
-  - conda-forge
   - conda-forge/label/libint_dev
   - conda-forge/label/psi4_dev
+  - conda-forge
 
 dependencies:
   - psi4
