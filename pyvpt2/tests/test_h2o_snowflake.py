@@ -12,7 +12,7 @@ except:
     no_qcfractal = True
 
 @pytest.mark.skipif(no_qcfractal, reason="QCFractal not installed")
-@pytest.mark.parametrize("driver", ["GRADIENT", "HESSIAN"])
+@pytest.mark.parametrize("driver", ["ENERGY", "GRADIENT", "HESSIAN"])
 def test_h2o_snowflake_vpt2(driver):
 
     snowflake = FractalSnowflake()
@@ -70,3 +70,5 @@ def test_h2o_snowflake_vpt2(driver):
     assert psi4.compare_values(ref_anharmonic, anharmonic, 0.5)
     assert psi4.compare_values(ref_harm_zpve, harm_zpve, 0.5)
     assert psi4.compare_values(ref_zpve_corr, zpve_corr, 0.5)
+
+    snowflake.stop()
