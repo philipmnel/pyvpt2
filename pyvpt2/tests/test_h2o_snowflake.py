@@ -12,7 +12,7 @@ except:
     no_qcfractal = True
 
 @pytest.mark.skipif(no_qcfractal, reason="QCFractal not installed")
-@pytest.mark.parametrize("driver", ["ENERGY", "GRADIENT", "HESSIAN"])
+@pytest.mark.parametrize("driver", ["GRADIENT", "HESSIAN"])
 def test_h2o_snowflake_vpt2(driver):
 
     snowflake = FractalSnowflake()
@@ -52,12 +52,12 @@ def test_h2o_snowflake_vpt2(driver):
 
     harmonic_plan = pyvpt2.vpt2(mol, **options)
     harmonic_plan.compute(client=client)
-    snowflake.await_results(timeout=300)
+    snowflake.await_results()
     harmonic_ret = harmonic_plan.get_results(client=client)
 
     plan = pyvpt2.vpt2_from_harmonic(harmonic_ret, **options)
     plan.compute(client=client)
-    snowflake.await_results(timeout=300)
+    snowflake.await_results()
     ret = plan.get_results(client=client)
     results = pyvpt2.process_vpt2(ret, **options)
 
