@@ -18,7 +18,7 @@ jobs:
     strategy:
       matrix:
         python-version: [3.8, "3.11"]
-        psi4-version: [nightly] #stable
+        psi4-version: [stable, nightly]
 
     steps:
     - uses: actions/checkout@v3
