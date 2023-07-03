@@ -14,7 +14,7 @@ Disclaimer: This codebase is still under active development.
 
 ### Dependencies
 Required:
-- psi4 = 1.7+
+- psi4 = 1.8+
 - python = 3.8+
 
 Installing psi4 will pull all other required dependencies.
