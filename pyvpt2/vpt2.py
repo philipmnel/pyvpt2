@@ -84,7 +84,7 @@ def process_harmonic(wfn: psi4.core.Wavefunction, **kwargs) -> Dict:
         else:
             modes_unitless[:, i] *= 0.0
 
-    zpve = np.sum(list(omega[i] for i in v_ind)) / 2
+    zpve = np.sum(list(omega[i] for i in (v_ind + v_ind_omit))) / 2
 
     harm = {}
     harm["E0"] = wfn.energy() # Energy
@@ -568,9 +568,6 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
             if j > i:
                 zpve += (1 / 4) * chi[i, j]
 
-    if (v_ind_omit := harm["v_ind_omitted"]):
-        for i in v_ind_omit:
-            zpve += 1/2 * omega[i]
 
     print("\nAnharmonic Constants (cm-1)")
     rows = [[i+1, j+1, chi[i, j]] for [i,j] in itertools.combinations_with_replacement(v_ind,2)]
@@ -603,6 +600,11 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
             band[i, j] += 0.5 * (chi[i,k] + chi[j,k])
         band[j, i] = band[i, j]
 
+    if (v_ind_omit := harm["v_ind_omitted"]):
+        for i in v_ind_omit:
+            zpve += 1/2 * omega[i]
+            anharmonic[i] = omega[i]
+
     extras = {}
     if kwargs["FERMI"] and kwargs["GVPT2"]:
         deperturbed = anharmonic.copy()
@@ -624,7 +626,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
         extras = extras
         )
 
-    v_ind_print = harm["v_ind_omitted"].copy()
+    v_ind_print = harm["v_ind_omitted"]
     v_ind_print.extend(v_ind)
     print_result(ret, v_ind_print)
     return ret
