@@ -40,7 +40,7 @@ def harmonic(mol: psi4.core.Molecule, **kwargs) -> TaskComputers:
     plan = psi4.hessian(method, dertype=dertype, molecule=mol, return_plan=True)
     return plan
 
-def process_harmonic(wfn: psi4.core.Wavefunction) -> Dict:
+def process_harmonic(wfn: psi4.core.Wavefunction, **kwargs) -> Dict:
     """
     Parse harmonic reference wavefunction
 
@@ -63,6 +63,7 @@ def process_harmonic(wfn: psi4.core.Wavefunction) -> Dict:
     q = frequency_analysis["q"].data
     intensities = frequency_analysis["IR_intensity"].data
     n_modes = len(trv)
+    omega_thresh = kwargs.get("VPT2_OMEGA_THRESH")
 
     omega = omega.real
     omega_au = omega * wave_to_hartree
@@ -70,16 +71,20 @@ def process_harmonic(wfn: psi4.core.Wavefunction) -> Dict:
     modes_unitless = np.copy(modes)
     gamma = [0.0] * n_modes
     v_ind = []
+    v_ind_omit = []
 
     for i in range(n_modes):
-        if trv[i] == "V" and omega[i] != 0.0:
-            gamma[i] = omega_au[i] / kforce_au[i]
-            modes_unitless[:, i] *= np.sqrt(gamma[i])
-            v_ind.append(i)
+        if trv[i] == "V":
+            if omega[i] < omega_thresh:
+                v_ind_omit.append(i)
+            else:
+                gamma[i] = omega_au[i] / kforce_au[i]
+                modes_unitless[:, i] *= np.sqrt(gamma[i])
+                v_ind.append(i)
         else:
             modes_unitless[:, i] *= 0.0
 
-    zpve = np.sum(list(omega[i] for i in v_ind)) / 2
+    zpve = np.sum(list(omega[i] for i in (v_ind + v_ind_omit))) / 2
 
     harm = {}
     harm["E0"] = wfn.energy() # Energy
@@ -88,6 +93,7 @@ def process_harmonic(wfn: psi4.core.Wavefunction) -> Dict:
     harm["omega"] = omega # Frequencies (cm-1)
     harm["modes"] = modes # Un mass weighted normal modes
     harm["v_ind"] = v_ind # Indices of vibrational modes
+    harm["v_ind_omitted"] = v_ind_omit # Indices of vibrational modes omitted from VPT2 treatment
     harm["n_modes"] = n_modes # Number of vibrational modes
     harm["modes_unitless"] = modes_unitless # Unitless normal modes, used for displacements
     harm["gamma"] = gamma # Unitless scaling factor
@@ -169,6 +175,7 @@ def process_options_keywords(**kwargs) -> Dict:
     kwargs.setdefault("FERMI_OMEGA_THRESH", 200)
     kwargs.setdefault("FERMI_K_THRESH", 1)
     kwargs.setdefault("RETURN_PLAN", False)
+    kwargs.setdefault("VPT2_OMEGA_THRESH", 1)
 
     return kwargs
 
@@ -282,7 +289,7 @@ def vpt2_from_harmonic(harmonic_result: AtomicResult, **kwargs) -> quartic.Quart
     """
     kwargs = process_options_keywords(**kwargs)
     wfn = _findif_schema_to_wfn(harmonic_result)
-    harm = process_harmonic(wfn)
+    harm = process_harmonic(wfn, **kwargs)
     mol = wfn.molecule()
 
     method = kwargs.get("METHOD2", kwargs.get("METHOD")) # If no method2, then method (default)
@@ -370,24 +377,43 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
     v_ind = harm["v_ind"]
     n_modes = harm["n_modes"]
 
+    degeneracy = np.ones(n_modes)
+    v_ind_nondegen = v_ind.copy() #
+    v_ind_degen = [] # degenerate modes
+    degen_mode_map = {}
+    # find degenerate modes:
+    for i,j in itertools.combinations(v_ind, 2):
+        if abs(omega[i] - omega[j]) < 0.2:
+            degeneracy[i] += 1
+            v_ind_degen.append(i)
+            v_ind_nondegen.remove(i)
+            v_ind_nondegen.remove(j)
+            # This assumes only linear mols (degeneracy of 2)
+            degen_mode_map[i] = j
+
+    v_ind_all = v_ind_nondegen.copy()
+    v_ind_all.extend(v_ind_degen)
     zeta, B = coriolis(mol, harm['q'])
     rotor_type = mol.rotor_type()
     fermi_list = identify_fermi(omega, phi_ijk, n_modes, v_ind, **kwargs)
 
     chi = np.zeros((n_modes, n_modes))
+    g = np.zeros((n_modes, n_modes))
     chi0 = 0.0
 
-    for i in v_ind:
+    # loop to solve non-degenerate anharmonicities
+    for i in v_ind_nondegen:
 
+        # TODO: Fix linear ZPVEs
         chi0 += phi_iijj[i, i]
         chi0 -= (7 / 9) * phi_ijk[i, i, i] ** 2 / omega[i]
 
-        for j in v_ind:
+        for j in v_ind_nondegen:
             if i == j:
                 chi[i, i] = phi_iijj[i, i]
 
-                for k in v_ind:
-                    if (k,(i,i)) in fermi_list:
+                for k in v_ind_nondegen:
+                    if (k, (i,i)) in fermi_list:
                         temp = (phi_ijk[i, i, k] ** 2 ) / 2
                         temp *= (1 / (2 * omega[i] + omega[k]) + 4 / omega[k])
                         chi[i,i] -= temp
@@ -407,7 +433,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
 
                 chi[i, j] += (4 * (omega[i] ** 2 + omega[j] ** 2) / (omega[i] * omega[j]) * rot)
 
-                for k in v_ind:
+                for k in v_ind_nondegen:
                     chi[i, j] -= (phi_ijk[i, i, k] * phi_ijk[j, j, k]) / omega[k]
 
                     if (k,(i,j)) in fermi_list:
@@ -464,6 +490,68 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
 
                 chi[i, j] /= 4
 
+        for j in v_ind_degen:
+            chi[i,j] = phi_iijj[i,j]
+
+            #TODO: handle multiple degeneracies
+            if (i,(j,j)) in fermi_list:
+                temp = 2 * omega[j] * phi_ijk[i,j,j]**2
+                temp *= 1 / (2*omega[j] + omega[i])
+                temp /= 4 * omega[j]
+                chi[i,j] -= temp
+
+            else:
+                temp = 2 * omega[j] * phi_ijk[i,j,j]**2
+                temp /= (4*omega[j]**2 - omega[i]**2)
+                chi[i,j] -= temp
+
+            for k in v_ind_nondegen:
+                chi[i,j] -= phi_ijk[i,i,k] * phi_ijk[j,j,k] / omega[k]
+
+            rot = 0
+            for b_ind in range(0, 3):
+                rot += B[b_ind] * (zeta[b_ind, i, j]) ** 2
+            chi[i, j] += 4 * rot * (omega[i] ** 2 + omega[j] ** 2) / (omega[i] * omega[j])
+            chi[i, j] /= 4
+            chi[j, i] = chi[i, j]
+
+    for i in v_ind_degen:
+        for j in v_ind_degen:
+            if i == j:
+                chi[i, i] = phi_iijj[i, i]
+                g[i, i] = -1/3 * phi_iijj[i, i]
+                g[i, i] += 7/3 * phi_ijk[i, i, i]**2 / omega[i]
+
+                for k in v_ind_nondegen:
+                    if (k,(i,i)) in fermi_list:
+                        temp = omega[k] * phi_ijk[k, i, i]**2
+                        temp *= 1 / (2*omega[i] + omega[k])
+                        temp /= 4 * omega[i]
+                        g[i, i] -= temp
+
+                    else:
+                        temp = omega[k] * phi_ijk[k, i, i]**2
+                        temp /= (4*omega[i]**2 - omega[k]**2)
+                        g[i, i] -= temp
+
+
+                for k in v_ind_all:
+                    if (k,(i,i)) in fermi_list:
+                        temp = (phi_ijk[i, i, k] ** 2 ) / 2
+                        temp *= (1 / (2 * omega[i] + omega[k]) + 4 / omega[k])
+                        chi[i,i] -= temp
+                    else:
+                        temp = ((8 * omega[i] ** 2 - 3 * omega[k] ** 2) * phi_ijk[i, i, k] ** 2)
+                        temp /= (omega[k] * (4 * omega[i] ** 2 - omega[k] ** 2))
+                        chi[i, i] -=  temp
+
+                chi[i,i] /= 16
+                g[i, i] /= 16
+
+            else:
+                # TODO: multiple degeneracies
+                pass
+
     for b_ind in range(3):
         if rotor_type == "RT_LINEAR": continue
         zeta_sum = 0
@@ -480,6 +568,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
             if j > i:
                 zpve += (1 / 4) * chi[i, j]
 
+
     print("\nAnharmonic Constants (cm-1)")
     rows = [[i+1, j+1, chi[i, j]] for [i,j] in itertools.combinations_with_replacement(v_ind,2)]
     for row in rows:
@@ -489,14 +578,19 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
     overtone = np.zeros(n_modes)
     band = np.zeros((n_modes, n_modes))
 
-    for i in v_ind:
-        anharmonic[i] = omega[i] + 2 * chi[i, i]
-        overtone[i] = 2*omega[i] + 6 * chi[i,i]
+    for i in v_ind_all:
 
-        for j in v_ind:
+        anharmonic[i] = omega[i] + (1 + degeneracy[i]) * chi[i, i] + g[i,i]
+        overtone[i] = 2*omega[i] + 2 * (2 + degeneracy[i]) * chi[i,i]
+
+        for j in v_ind_all:
             if j == i: continue
-            anharmonic[i] += 0.5 * chi[i, j]
-            overtone[i] += chi[i, j]
+            anharmonic[i] += 0.5 * chi[i, j] * degeneracy[j]
+            overtone[i] += chi[i, j] * degeneracy[j]
+
+        if i in v_ind_degen:
+            j = degen_mode_map[i]
+            anharmonic[j] = anharmonic[i]
 
     for [i, j] in itertools.combinations(v_ind, 2):
         band[i, j] = omega[i] + omega[j] + 2 * chi[i, i] + 2 * chi[j, j] + 2 * chi[i, j]
@@ -505,6 +599,11 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
             elif k == j: continue
             band[i, j] += 0.5 * (chi[i,k] + chi[j,k])
         band[j, i] = band[i, j]
+
+    if (v_ind_omit := harm["v_ind_omitted"]):
+        for i in v_ind_omit:
+            zpve += 1/2 * omega[i]
+            anharmonic[i] = omega[i]
 
     extras = {}
     if kwargs["FERMI"] and kwargs["GVPT2"]:
@@ -527,7 +626,9 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
         extras = extras
         )
 
-    print_result(ret, v_ind)
+    v_ind_print = harm["v_ind_omitted"]
+    v_ind_print.extend(v_ind)
+    print_result(ret, v_ind_print)
     return ret
 
 def process_fermi_solver(fermi_list: List, v_ind: List, nu: np.ndarray, overtone:np.ndarray, band:np.ndarray, phi_ijk:np.ndarray) -> Tuple[np.ndarray, List]:
