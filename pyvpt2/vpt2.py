@@ -40,7 +40,7 @@ def harmonic(mol: psi4.core.Molecule, **kwargs) -> TaskComputers:
     plan = psi4.hessian(method, dertype=dertype, molecule=mol, return_plan=True)
     return plan
 
-def process_harmonic(wfn: psi4.core.Wavefunction) -> Dict:
+def process_harmonic(wfn: psi4.core.Wavefunction, **kwargs) -> Dict:
     """
     Parse harmonic reference wavefunction
 
@@ -63,6 +63,7 @@ def process_harmonic(wfn: psi4.core.Wavefunction) -> Dict:
     q = frequency_analysis["q"].data
     intensities = frequency_analysis["IR_intensity"].data
     n_modes = len(trv)
+    omega_thresh = kwargs.get("VPT2_OMEGA_THRESH")
 
     omega = omega.real
     omega_au = omega * wave_to_hartree
@@ -70,12 +71,16 @@ def process_harmonic(wfn: psi4.core.Wavefunction) -> Dict:
     modes_unitless = np.copy(modes)
     gamma = [0.0] * n_modes
     v_ind = []
+    v_ind_omit = []
 
     for i in range(n_modes):
-        if trv[i] == "V" and omega[i] != 0.0:
-            gamma[i] = omega_au[i] / kforce_au[i]
-            modes_unitless[:, i] *= np.sqrt(gamma[i])
-            v_ind.append(i)
+        if trv[i] == "V":
+            if omega[i] < omega_thresh:
+                v_ind_omit.append(i)
+            else:
+                gamma[i] = omega_au[i] / kforce_au[i]
+                modes_unitless[:, i] *= np.sqrt(gamma[i])
+                v_ind.append(i)
         else:
             modes_unitless[:, i] *= 0.0
 
@@ -88,6 +93,7 @@ def process_harmonic(wfn: psi4.core.Wavefunction) -> Dict:
     harm["omega"] = omega # Frequencies (cm-1)
     harm["modes"] = modes # Un mass weighted normal modes
     harm["v_ind"] = v_ind # Indices of vibrational modes
+    harm["v_ind_omitted"] = v_ind_omit # Indices of vibrational modes omitted from VPT2 treatment
     harm["n_modes"] = n_modes # Number of vibrational modes
     harm["modes_unitless"] = modes_unitless # Unitless normal modes, used for displacements
     harm["gamma"] = gamma # Unitless scaling factor
@@ -169,6 +175,7 @@ def process_options_keywords(**kwargs) -> Dict:
     kwargs.setdefault("FERMI_OMEGA_THRESH", 200)
     kwargs.setdefault("FERMI_K_THRESH", 1)
     kwargs.setdefault("RETURN_PLAN", False)
+    kwargs.setdefault("VPT2_OMEGA_THRESH", 1)
 
     return kwargs
 
@@ -282,7 +289,7 @@ def vpt2_from_harmonic(harmonic_result: AtomicResult, **kwargs) -> quartic.Quart
     """
     kwargs = process_options_keywords(**kwargs)
     wfn = _findif_schema_to_wfn(harmonic_result)
-    harm = process_harmonic(wfn)
+    harm = process_harmonic(wfn, **kwargs)
     mol = wfn.molecule()
 
     method = kwargs.get("METHOD2", kwargs.get("METHOD")) # If no method2, then method (default)
@@ -561,6 +568,10 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
             if j > i:
                 zpve += (1 / 4) * chi[i, j]
 
+    if (v_ind_omit := harm["v_ind_omitted"]):
+        for i in v_ind_omit:
+            zpve += 1/2 * omega[i]
+
     print("\nAnharmonic Constants (cm-1)")
     rows = [[i+1, j+1, chi[i, j]] for [i,j] in itertools.combinations_with_replacement(v_ind,2)]
     for row in rows:
@@ -613,7 +624,9 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
         extras = extras
         )
 
-    print_result(ret, v_ind)
+    v_ind_print = harm["v_ind_omitted"].copy()
+    v_ind_print.extend(v_ind)
+    print_result(ret, v_ind_print)
     return ret
 
 def process_fermi_solver(fermi_list: List, v_ind: List, nu: np.ndarray, overtone:np.ndarray, band:np.ndarray, phi_ijk:np.ndarray) -> Tuple[np.ndarray, List]:
