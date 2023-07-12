@@ -385,7 +385,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
     if check_rotor(mol) == "RT_LINEAR":
         # Only do degeneracies on linear mols for now
         for i,j in itertools.combinations(v_ind, 2):
-            if abs(omega[i] - omega[j]) < 0.2:
+            if abs(omega[i] - omega[j]) < 0.2: #TODO: tolerance value probably not ideal
                 degeneracy[i] += 1
                 v_ind_degen.append(i)
                 v_ind_nondegen.remove(i)
