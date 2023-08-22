@@ -31,12 +31,13 @@ jobs:
         ulimit -a
 
     - name: Create Environment
-      uses: mamba-org/provision-with-micromamba@main
+      uses: mamba-org/setup-micromamba@v1
       with:
-        extra-specs: python=${{ matrix.python-version }}
+        create-args: python=${{ matrix.python-version }}
         environment-file: devtools/conda-envs/test_env_${{ matrix.psi4-version }}.yaml
         environment-name: test
-        channel-priority: flexible
+        condarc: | 
+          channel_priority: flexible
 
     - name: Install pyVPT2
       # conda setup requires this special shell
