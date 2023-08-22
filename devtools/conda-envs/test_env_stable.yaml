@@ -13,7 +13,7 @@ dependencies:
     # Base depends
   - python
   - pip
-  - pydantic < 2.0
+  - pydantic < 2.0 # can be unpinned after psi 1.9
 
     # Testing
   - pytest
