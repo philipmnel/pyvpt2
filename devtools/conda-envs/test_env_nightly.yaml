@@ -14,7 +14,7 @@ dependencies:
     # Base depends
   - python
   - pip
-  - pydantic < 2.0
+  - pydantic
 
     # Testing
   - pytest
