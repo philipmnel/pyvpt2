@@ -1,6 +1,9 @@
 from typing import Any, Dict
 
-from pydantic import Field
+try:
+    from pydantic.v1 import Field
+except ImportError:
+    from pydantic import Field
 from qcelemental.models import Molecule
 from qcelemental.models.basemodels import ProtoModel
 from qcelemental.models.common_models import Model
