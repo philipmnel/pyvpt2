@@ -505,6 +505,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
 
         for j in v_ind_nondegen:
             if i == j:
+                #chi_mm
                 chi[i, i] = phi_iijj[i, i]
 
                 for k in v_ind_nondegen:
@@ -520,6 +521,8 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
                 chi[i, i] /= 16
 
             else:
+                #chi_mn
+                chi0 += 3 * omega[i]* phi_ijk[i, j, j] ** 2 / (4 * omega[j] ** 2 - omega[i] ** 2)
                 chi[i, j] = phi_iijj[i, j]
                 rot = 0
                 for b_ind in range(0, 3):
@@ -530,61 +533,15 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
                 for k in v_ind_nondegen:
                     chi[i, j] -= (phi_ijk[i, i, k] * phi_ijk[j, j, k]) / omega[k]
 
-                    if (k,(i,j)) in fermi_list:
-                        # i + j = k
-                        delta_ij = 1 / (omega[i] + omega[j] + omega[k])
-                        #delta_ij -= 1 / (omega[i] + omega[j] - omega[k]) deperturbed
-                        delta_ij += 1 / (-omega[i] + omega[j] + omega[k])
-                        delta_ij += 1 / (omega[i] - omega[j] + omega[k])
-                        delta_ij /= -2
-
-                        delta_0 = 1 / (omega[i] + omega[j] + omega[k])
-                        #delta_0 -= 1 / (omega[i] + omega[j] - omega[k]) deperturbed
-                        delta_0 -= 1 / (omega[i] - omega[j] + omega[k])
-                        delta_0 -= 1 / (-omega[i] + omega[j] + omega[k])
-
-                    elif (i,(j,k)) in fermi_list:
-                        # j + k = i
-                        delta_ij = 1 / (omega[i] + omega[j] + omega[k])
-                        delta_ij -= 1 / (omega[i] + omega[j] - omega[k])
-                        #delta_ij += 1 / (-omega[i] + omega[j] + omega[k]) deperturbed
-                        delta_ij += 1 / (omega[i] - omega[j] + omega[k])
-                        delta_ij /= -2
-
-                        delta_0 = 1 / (omega[i] + omega[j] + omega[k])
-                        delta_0 -= 1 / (omega[i] + omega[j] - omega[k])
-                        delta_0 -= 1 / (omega[i] - omega[j] + omega[k])
-                        #delta_0 -= 1 / (-omega[i] + omega[j] + omega[k]) deperturbed
-
-                    elif (j,(i,k)) in fermi_list:
-                        # k + i = j
-                        delta_ij = 1 / (omega[i] + omega[j] + omega[k])
-                        delta_ij -= 1 / (omega[i] + omega[j] - omega[k])
-                        delta_ij += 1 / (-omega[i] + omega[j] + omega[k])
-                        #delta_ij += 1 / (omega[i] - omega[j] + omega[k]) deperturbed
-                        delta_ij /= -2
-
-                        delta_0 = 1 / (omega[i] + omega[j] + omega[k])
-                        delta_0 -= 1 / (omega[i] + omega[j] - omega[k])
-                        #delta_0 -= 1 / (omega[i] - omega[j] + omega[k]) deperturbed
-                        delta_0 -= 1 / (-omega[i] + omega[j] + omega[k])
-
-                    else:
-                        delta = omega[i] + omega[j] - omega[k]
-                        delta *= omega[i] + omega[j] + omega[k]
-                        delta *= omega[i] - omega[j] + omega[k]
-                        delta *= omega[i] - omega[j] - omega[k]
-                        delta_ij = 2 * omega[k] * (omega[i] ** 2 + omega[j] ** 2 - omega[k] ** 2) / delta
-                        delta_0 = -8 * (omega[i] * omega[j] * omega[k]) / delta
-
+                    delta_ij, delta_0 = compute_delta_ij(i, j, k, omega, fermi_list)
                     chi[i,j] += phi_ijk[i,j,k]**2 * delta_ij
 
                 chi[i, j] /= 4
 
         for j in v_ind_degen:
+            #chi_ms
             chi[i,j] = phi_iijj[i,j]
 
-            #TODO: handle multiple degeneracies
             if (i,(j,j)) in fermi_list:
                 temp = 2 * omega[j] * phi_ijk[i,j,j]**2
                 temp *= 1 / (2*omega[j] + omega[i])
@@ -599,6 +556,12 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
             for k in v_ind_nondegen:
                 chi[i,j] -= phi_ijk[i,i,k] * phi_ijk[j,j,k] / omega[k]
 
+            for k in v_ind_degen:
+                if j == k: continue
+
+                delta_ij, delta_0 = compute_delta_ij(i, j, k, omega, fermi_list)
+                chi[i,j] += phi_ijk[i,j,k]**2 * delta_ij
+
             rot = 0
             for b_ind in range(0, 3):
                 rot += B[b_ind] * (zeta[b_ind, i, j]) ** 2
@@ -609,6 +572,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
     for i in v_ind_degen:
         for j in v_ind_degen:
             if i == j:
+                # chi_ss
                 chi[i, i] = phi_iijj[i, i]
                 g[i, i] = -1/3 * phi_iijj[i, i]
                 g[i, i] += 7/3 * phi_ijk[i, i, i]**2 / omega[i]
@@ -636,12 +600,56 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
                         temp /= (omega[k] * (4 * omega[i] ** 2 - omega[k] ** 2))
                         chi[i, i] -=  temp
 
+                for k in v_ind_degen:
+                    if (k,(i,i)) in fermi_list:
+                        temp = (phi_ijk[i, i, k] ** 2 ) / 2
+                        temp *= (-1 / (2 * omega[i] + omega[k]) + 4 / omega[k])
+                        g[i,i] -= temp
+                    else:
+                        temp = ((8 * omega[i] ** 2 - omega[k] ** 2) * phi_ijk[i, i, k] ** 2)
+                        temp /= (omega[k] * (4 * omega[i] ** 2 - omega[k] ** 2))
+                        g[i, i] -=  temp
+
+                #TODO: rot contribution to g_ii
+
                 chi[i,i] /= 16
                 g[i, i] /= 16
 
             else:
-                # TODO: multiple degeneracies
-                pass
+                #chi_st
+                chi[i,j] = phi_iijj[i,j]
+
+                for k in v_ind_nondegen:
+                    delta_ij, delta_0 = compute_delta_ij(i, j, k, omega, fermi_list)
+                    chi[i,j] += 1/2 * phi_ijk[i,j,k]**2 * delta_ij
+                    chi[i,j] -= phi_ijk[k,i,i] * phi_ijk[k,j,j] / omega[k]
+
+                for k in v_ind_degen:
+                    delta_ij, delta_0 = compute_delta_ij(i, j, k, omega, fermi_list)
+                    chi[i,j] += phi_ijk[i,j,k]**2 * delta_ij
+
+                #TODO: rotational contribution to chi_ij
+
+
+                g[i,j] = 0.0
+
+                for k in v_ind_nondegen:
+                    delta = omega[i] + omega[j] - omega[k]
+                    delta *= omega[i] + omega[j] + omega[k]
+                    delta *= omega[i] - omega[j] + omega[k]
+                    delta *= omega[i] - omega[j] - omega[k]
+                    delta *= 2
+                    g[i,j] += phi_ijk[i,j,k]**2 * omega[i] * omega[k] * omega[j] / delta
+
+                for k in v_ind_degen:
+                    delta = omega[i] + omega[j] - omega[k]
+                    delta *= omega[i] + omega[j] + omega[k]
+                    delta *= omega[i] - omega[j] + omega[k]
+                    delta *= omega[i] - omega[j] - omega[k]
+                    g[i,j] += phi_ijk[i,j,k]**2 * omega[i] * omega[k] * omega[j] / delta
+
+                #TODO: rotational contributions to g_ij
+
 
     zpve = 0.0
     for i in v_ind_all:
@@ -925,3 +933,58 @@ def print_result(results: VPTResult, v_ind: np.ndarray):
     print("{: >9} {: >20} {: >20} {: >20}".format(*header2))
     for row in rows:
         print("{: >9} {: >20.4f} {: >20.4f} {: >20.4f}".format(*row))
+
+
+def compute_delta_ij(i, j, k, omega, fermi_list):
+    """
+    Very long bit that is reused throughout vpt2 equations
+    """
+
+    if (k,(i,j)) in fermi_list:
+        # i + j = k
+        delta_ij = 1 / (omega[i] + omega[j] + omega[k])
+        #delta_ij -= 1 / (omega[i] + omega[j] - omega[k]) deperturbed
+        delta_ij += 1 / (-omega[i] + omega[j] + omega[k])
+        delta_ij += 1 / (omega[i] - omega[j] + omega[k])
+        delta_ij /= -2
+
+        delta_0 = 1 / (omega[i] + omega[j] + omega[k])
+        #delta_0 -= 1 / (omega[i] + omega[j] - omega[k]) deperturbed
+        delta_0 -= 1 / (omega[i] - omega[j] + omega[k])
+        delta_0 -= 1 / (-omega[i] + omega[j] + omega[k])
+
+    elif (i,(j,k)) in fermi_list:
+        # j + k = i
+        delta_ij = 1 / (omega[i] + omega[j] + omega[k])
+        delta_ij -= 1 / (omega[i] + omega[j] - omega[k])
+        #delta_ij += 1 / (-omega[i] + omega[j] + omega[k]) deperturbed
+        delta_ij += 1 / (omega[i] - omega[j] + omega[k])
+        delta_ij /= -2
+
+        delta_0 = 1 / (omega[i] + omega[j] + omega[k])
+        delta_0 -= 1 / (omega[i] + omega[j] - omega[k])
+        delta_0 -= 1 / (omega[i] - omega[j] + omega[k])
+        #delta_0 -= 1 / (-omega[i] + omega[j] + omega[k]) deperturbed
+
+    elif (j,(i,k)) in fermi_list:
+        # k + i = j
+        delta_ij = 1 / (omega[i] + omega[j] + omega[k])
+        delta_ij -= 1 / (omega[i] + omega[j] - omega[k])
+        delta_ij += 1 / (-omega[i] + omega[j] + omega[k])
+        #delta_ij += 1 / (omega[i] - omega[j] + omega[k]) deperturbed
+        delta_ij /= -2
+
+        delta_0 = 1 / (omega[i] + omega[j] + omega[k])
+        delta_0 -= 1 / (omega[i] + omega[j] - omega[k])
+        #delta_0 -= 1 / (omega[i] - omega[j] + omega[k]) deperturbed
+        delta_0 -= 1 / (-omega[i] + omega[j] + omega[k])
+
+    else:
+        delta = omega[i] + omega[j] - omega[k]
+        delta *= omega[i] + omega[j] + omega[k]
+        delta *= omega[i] - omega[j] + omega[k]
+        delta *= omega[i] - omega[j] - omega[k]
+        delta_ij = 2 * omega[k] * (omega[i] ** 2 + omega[j] ** 2 - omega[k] ** 2) / delta
+        delta_0 = -8 * (omega[i] * omega[j] * omega[k]) / delta
+
+    return delta_ij, delta_0
