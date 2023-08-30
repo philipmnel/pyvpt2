@@ -499,14 +499,9 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
 
     chi = np.zeros((n_modes, n_modes))
     g = np.zeros((n_modes, n_modes))
-    chi0 = 0.0
 
     # loop to solve non-degenerate anharmonicities
     for i in v_ind_nondegen:
-
-        # TODO: Fix linear ZPVEs
-        chi0 += phi_iijj[i, i]
-        chi0 -= (7 / 9) * phi_ijk[i, i, i] ** 2 / omega[i]
 
         for j in v_ind_nondegen:
             if i == j:
@@ -525,7 +520,6 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
                 chi[i, i] /= 16
 
             else:
-                chi0 += 3 * omega[i]* phi_ijk[i, j, j] ** 2 / (4 * omega[j] ** 2 - omega[i] ** 2)
                 chi[i, j] = phi_iijj[i, j]
                 rot = 0
                 for b_ind in range(0, 3):
@@ -584,9 +578,6 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
                         delta_0 = -8 * (omega[i] * omega[j] * omega[k]) / delta
 
                     chi[i,j] += phi_ijk[i,j,k]**2 * delta_ij
-
-                    if (j > i) and (k > j):
-                        chi0 +=  2 * phi_ijk[i, j, k] ** 2 * delta_0
 
                 chi[i, j] /= 4
 
@@ -652,21 +643,89 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
                 # TODO: multiple degeneracies
                 pass
 
+    zpve = 0.0
+    for i in v_ind_all:
+        zpve += 1/2 * omega[i] * degeneracy[i]
+
+    for i in v_ind_nondegen:
+        for j in v_ind_nondegen:
+            zpve += 1/32 * phi_iijj[i,j]
+
+    for i in v_ind_degen:
+        zpve += 1/12 * phi_iijj[i,i]
+
+        for j in v_ind_nondegen:
+            zpve += 1/8 * phi_iijj[i,j]
+
+        for j in v_ind_degen:
+            if i == j: continue
+            zpve += 1/16 * phi_iijj[i,j] #II
+            zpve += 1/16 * phi_iijj[i,degen_mode_map[j]] #III
+
+    for i in v_ind_nondegen:
+        for j in v_ind_nondegen:
+            for k in v_ind_nondegen:
+                zpve -= phi_ijk[i,i,k] * phi_ijk[j,j,k] / (32 * omega[k])
+                zpve -= phi_ijk[i,j,k]**2 / (48 * (omega[i] + omega[j] + omega[k]))
+
+    for i in v_ind_degen:
+        continue
+        #zpve -= 1/36 * phi_ijk[i,i,i]**2 / (omega[i])
+
+    for i in v_ind_nondegen:
+        for j in v_ind_degen:
+            zpve -= phi_ijk[i,j,j]**2 * (omega[i] + omega[j]) / (4 * omega[i] * (2 * omega[j] + omega[i]))
+
+            for k in v_ind_nondegen:
+                zpve -= 1/8 * phi_ijk[i,i,k] * phi_ijk[k,j,j] / (omega[k])
+
+            for k in v_ind_degen:
+                if k <= j: continue
+                zpve -= 1/4 * phi_ijk[i,j,j] * phi_ijk[i,k,k] / (omega[i])
+                zpve -= 1/4 * phi_ijk[i,j,k]**2 / (omega[i] + omega[j] + omega[k])
+
+    for i in v_ind_degen:
+        for j in v_ind_degen:
+            if i == j: continue
+            #zpve -= phi_ijk[i,i,j] **2 / (4 * (2 * omega[i] + omega[j]))
+            continue
+
+    for i in v_ind_degen:
+        for j in v_ind_degen:
+            for k in v_ind_degen:
+                if j <= i: continue
+                if k <= j: continue
+                #zpve -= phi_ijk[i,j,k]**2 / (omega[i] + omega[j] + omega[k])
+                continue
+
+    for b_ind in range(3):
+        if rotor_type == "RT_LINEAR": continue
+        zpve -= 1/4 * B[b_ind]
+
     for b_ind in range(3):
         if rotor_type == "RT_LINEAR": continue
         zeta_sum = 0
-        for [i,j] in itertools.combinations(v_ind, 2):
-            zeta_sum += (zeta[b_ind, i, j])**2
-        chi0 -= 16 * B[b_ind] * (1 + 2*zeta_sum)
+        for [i,j] in itertools.combinations(v_ind_nondegen, 2):
+            zeta_sum += (zeta[b_ind, i, j])**2 * ((omega[i]**2 + omega[j]**2) / (omega[i] * omega[j]) - 2)
+        zpve += 1/4 * B[b_ind] * zeta_sum
 
-    chi0 /= 64
+    for i in v_ind_nondegen:
+        for j in v_ind_degen:
+            temp = (zeta[0, i, j]**2 + zeta[0, i, degen_mode_map[j]]**2)
+            temp *= ((omega[i]**2 + omega[j]**2) / (omega[i] * omega[j]) - 2)
+            zpve += B[0] * temp / 2
 
-    zpve = chi0
-    for i in v_ind:
-        zpve += (1 / 2) * (omega[i] + (1 / 2) * chi[i, i])
-        for j in v_ind:
-            if j > i:
-                zpve += (1 / 4) * chi[i, j]
+    for i in v_ind_degen:
+        for j in v_ind_degen:
+            continue
+            if j <= i: continue
+            temp = (zeta[2, i, j]**2 + zeta[2, i, degen_mode_map[j]]**2)
+            temp *= ((omega[i]**2 + omega[j]**2) / (omega[i] * omega[j]) - 2)
+            zpve += B[2] * temp / 2
+
+            temp = (zeta[0, i, j]**2 + zeta[1, i, j]**2)
+            temp *= ((omega[i]**2 + omega[j]**2) / (omega[i] * omega[j]) - 2)
+            zpve += B[0] * temp
 
 
     print("\nAnharmonic Constants (cm-1)")
@@ -702,7 +761,6 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
 
     if (v_ind_omit := harm["v_ind_omitted"]):
         for i in v_ind_omit:
-            zpve += 1/2 * omega[i]
             anharmonic[i] = omega[i]
 
     extras = {}
