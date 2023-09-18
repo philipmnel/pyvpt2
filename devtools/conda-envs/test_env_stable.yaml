@@ -1,12 +1,11 @@
 name: test-stable
 channels:
-  - qcarchive/label/next
   - conda-forge/label/libint_dev
   - conda-forge
 
 dependencies:
   - psi4
-  - qcfractal
+  - qcfractal=0.50
   - qcportal
   - qcelemental
 
