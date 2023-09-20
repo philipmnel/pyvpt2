@@ -113,7 +113,7 @@ class AtomicComputer(BaseComputer):
                 "method": self.method,
                 "basis": self.basis
             },
-            "keywords": self.keywords,
+            "keywords": self.keywords.pop("function_kwargs"),
             "protocols": {
                 "stdout": True,
             },

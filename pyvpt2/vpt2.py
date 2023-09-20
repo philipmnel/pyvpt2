@@ -54,9 +54,16 @@ def _findif_schema_to_wfn(findif_model: AtomicResult) -> psi4.core.Wavefunction:
     # setting CURRENT E/G/H on wfn below catches Wfn.energy_, gradient_, hessian_
     # setting CURRENT E/G/H on core below is authoritative P::e record
     for obj in [psi4.core, wfn]:
-        obj.set_variable("CURRENT ENERGY", float(findif_model.extras["qcvars"].get("CURRENT ENERGY")))
-        obj.set_variable("CURRENT GRADIENT", findif_model.extras["qcvars"].get("CURRENT GRADIENT"))
-        obj.set_variable("CURRENT HESSIAN", findif_model.extras["qcvars"].get("CURRENT HESSIAN"))
+
+        ret_e = findif_model.properties.return_energy
+        ret_g = findif_model.properties.return_gradient
+        ret_h = findif_model.properties.return_hessian
+        if ret_e is not None:
+            obj.set_variable("CURRENT ENERGY", ret_e)
+        if ret_g is not None:
+            obj.set_variable("CURRENT GRADIENT", ret_g)
+        if ret_h is not None:
+            obj.set_variable("CURRENT HESSIAN", ret_h)
         dipder = findif_model.extras["qcvars"].get("CURRENT DIPOLE GRADIENT", None)
         if dipder is not None:
             obj.set_variable("CURRENT DIPOLE GRADIENT", dipder)
@@ -112,7 +119,9 @@ def process_harmonic(wfn: psi4.core.Wavefunction, **kwargs) -> Dict:
 
     harm = {}
     harm["E0"] = wfn.energy() # Energy
-    harm["G0"] = wfn.gradient().np # Gradient
+    G0 = wfn.gradient()
+    if G0 is not None:
+        harm["G0"] = G0.np # Gradient
     harm["H0"] = wfn.hessian().np # Hessian
     harm["omega"] = omega # Frequencies (cm-1)
     harm["modes"] = modes # Un mass weighted normal modes

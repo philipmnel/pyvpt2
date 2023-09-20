@@ -195,6 +195,9 @@ def _geom_generator(mol: psi4.core.Molecule, data: Dict, mode: int) -> Dict:
         findifrec["reference"]["geometry"] = ref_geom
         findifrec["reference"]["do_reference"] = True
 
+    if data["harm"].get("G0", None) is None and data["options"]["FD"] == "GRADIENT":
+        findifrec["reference"]["do_reference"] = True
+
     return findifrec
 
 quartic_from_energies_geometries = partial(_geom_generator, mode = 0)
@@ -302,7 +305,7 @@ def assemble_quartic_from_gradients(findifrec: Dict) -> Tuple[np.ndarray, np.nda
     """
 
     n_modes = findifrec["harm"]["n_modes"]
-    grad0 = findifrec["reference"].get("gradient", findifrec["harm"]["G0"])
+    grad0 = findifrec["reference"].get("gradient", findifrec["harm"].get("G0"))
     q = findifrec["harm"]["modes"]
     gamma = findifrec["harm"]["gamma"]
     v_ind = findifrec["harm"]["v_ind"]
@@ -589,13 +592,12 @@ class QuarticComputer(BaseComputer):
 
             elif task.driver == 'gradient':
                 reference['gradient'] = response
-                reference['energy'] = task.extras['qcvars']['CURRENT ENERGY']
+                reference['energy'] = task.properties.return_energy
 
             elif task.driver == 'hessian':
                 reference['hessian'] = response
-                reference['energy'] = task.extras['qcvars']['CURRENT ENERGY']
-                if 'CURRENT GRADIENT' in task.extras['qcvars']:
-                    reference['gradient'] = task.extras['qcvars']['CURRENT GRADIENT']
+                reference['energy'] = task.properties.return_energy
+                reference['gradient'] = task.properties.return_gradient
 
         # load AtomicComputer results into findifrec[displacements]
         for label, displacement in self.findifrec["displacements"].items():
@@ -607,13 +609,12 @@ class QuarticComputer(BaseComputer):
 
             elif task.driver == 'gradient':
                 displacement['gradient'] = response
-                displacement['energy'] = task.extras['qcvars']['CURRENT ENERGY']
+                displacement['energy'] = task.properties.return_energy
 
             elif task.driver == 'hessian':
                 displacement['hessian'] = response
-                displacement['energy'] = task.extras['qcvars']['CURRENT ENERGY']
-                if 'CURRENT GRADIENT' in task.extras['qcvars']:
-                    displacement['gradient'] = task.extras['qcvars']['CURRENT GRADIENT']
+                displacement['energy'] = task.properties.return_energy
+                displacement['gradient'] = task.properties.return_gradient
 
             displacement['provenance'] = task.provenance
 
