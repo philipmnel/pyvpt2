@@ -7,8 +7,7 @@ from typing import TYPE_CHECKING, Dict, List, Tuple, Union
 import numpy as np
 import psi4
 from psi4.driver.driver_cbs import CompositeComputer
-from psi4.driver.driver_findif import FiniteDifferenceComputer, _findif_schema_to_wfn
-from psi4.driver.task_base import AtomicComputer
+from psi4.driver.driver_findif import FiniteDifferenceComputer
 from qcelemental.models import AtomicResult
 
 #Local imports:
@@ -16,6 +15,8 @@ from . import quartic
 from .constants import *
 from .fermi_solver import Interaction, State, fermi_solver
 from .result import VPTResult
+from .task_base import AtomicComputer
+from .task_planner import hessian_planner, quartic_planner
 
 logger = logging.getLogger(f"psi4.{__name__}")
 
@@ -36,9 +37,31 @@ def harmonic(mol: psi4.core.Molecule, **kwargs) -> TaskComputers:
     """
 
     method = kwargs["METHOD"]
-    dertype = kwargs["FD"]
-    plan = psi4.hessian(method, dertype=dertype, molecule=mol, return_plan=True)
+    plan = hessian_planner(method=method, molecule=mol, **kwargs)
     return plan
+
+def _findif_schema_to_wfn(findif_model: AtomicResult) -> psi4.core.Wavefunction:
+    """Helper function to produce Wavefunction and Psi4 files from a FiniteDifference-flavored AtomicResult."""
+
+    # new skeleton wavefunction w/mol, highest-SCF basis (just to choose one), & not energy
+    mol = psi4.core.Molecule.from_schema(findif_model.molecule.dict(), nonphysical=True)
+    sbasis = "def2-svp" if (findif_model.model.basis == "(auto)") else findif_model.model.basis
+    basis = psi4.core.BasisSet.build(mol, "ORBITAL", sbasis, quiet=True)
+    wfn = psi4.core.Wavefunction(mol, basis)
+    if hasattr(findif_model.provenance, "module"):
+        wfn.set_module(findif_model.provenance.module)
+
+    # setting CURRENT E/G/H on wfn below catches Wfn.energy_, gradient_, hessian_
+    # setting CURRENT E/G/H on core below is authoritative P::e record
+    for obj in [psi4.core, wfn]:
+        obj.set_variable("CURRENT ENERGY", float(findif_model.extras["qcvars"].get("CURRENT ENERGY")))
+        obj.set_variable("CURRENT GRADIENT", findif_model.extras["qcvars"].get("CURRENT GRADIENT"))
+        obj.set_variable("CURRENT HESSIAN", findif_model.extras["qcvars"].get("CURRENT HESSIAN"))
+        dipder = findif_model.extras["qcvars"].get("CURRENT DIPOLE GRADIENT", None)
+        if dipder is not None:
+            obj.set_variable("CURRENT DIPOLE GRADIENT", dipder)
+
+    return wfn
 
 def process_harmonic(wfn: psi4.core.Wavefunction, **kwargs) -> Dict:
     """
@@ -61,7 +84,8 @@ def process_harmonic(wfn: psi4.core.Wavefunction, **kwargs) -> Dict:
     kforce = frequency_analysis["k"].data
     trv = frequency_analysis["TRV"].data
     q = frequency_analysis["q"].data
-    intensities = frequency_analysis["IR_intensity"].data
+    if intensities := frequency_analysis.get("IR_intensities", None):
+        intensities = intensities.data
     n_modes = len(trv)
     omega_thresh = kwargs.get("VPT2_OMEGA_THRESH")
 
@@ -176,6 +200,8 @@ def process_options_keywords(**kwargs) -> Dict:
     kwargs.setdefault("FERMI_K_THRESH", 1)
     kwargs.setdefault("RETURN_PLAN", False)
     kwargs.setdefault("VPT2_OMEGA_THRESH", 1)
+    kwargs.setdefault("QC_PROGRAM", "psi4")
+    kwargs.setdefault("QC_KWARGS", {})
 
     return kwargs
 
@@ -294,7 +320,7 @@ def vpt2_from_harmonic(harmonic_result: AtomicResult, **kwargs) -> quartic.Quart
 
     method = kwargs.get("METHOD2", kwargs.get("METHOD")) # If no method2, then method (default)
     kwargs = {"options": kwargs, "harm": harm}
-    plan = quartic.task_planner(method=method, molecule=mol, **kwargs)
+    plan = quartic_planner(method=method, molecule=mol, **kwargs)
 
     return plan
 

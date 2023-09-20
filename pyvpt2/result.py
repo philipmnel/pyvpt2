@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 try:
     from pydantic.v1 import Field
@@ -18,7 +18,7 @@ class VPTResult(ProtoModel):
     nu: Array[float] = Field(..., description="VPT2 Anharmonic vibrational frequencies")
     harmonic_zpve: Array[float] = Field(..., description="Harmonic zero-point vibrational energy")
     anharmonic_zpve : Array[float] = Field(..., description="VPT2 Anharmonic zero-point vibrational energy")
-    harmonic_intensity: Array[float] = Field(..., description="Harmonic IR intensities")
+    harmonic_intensity: Optional[Array[float]] = Field(..., description="Harmonic IR intensities")
     chi: Array[float] = Field(..., description="VPT2 anharmonicity constants")
     phi_ijk: Array[float] = Field(..., description="Cubic derivatives")
     phi_iijj: Array[float] = Field(..., description="Semi-diagonal quartic derivatives")

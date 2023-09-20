@@ -7,14 +7,12 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple
 
 import numpy as np
 import psi4
-from psi4.driver.driver_cbs import CompositeComputer, composite_procedures
-from psi4.driver.task_base import AtomicComputer, BaseComputer
-from psi4.driver.task_planner import expand_cbs_methods
 from pydantic import validator
 from qcelemental.models import AtomicResult, DriverEnum
 
 # Local imports:
 from .constants import wave_to_hartree
+from .task_base import AtomicComputer, BaseComputer
 
 if TYPE_CHECKING:
     import qcportal
@@ -517,6 +515,7 @@ class QuarticComputer(BaseComputer):
                 "method": self.method,
                 "basis": data["basis"],
                 "keywords": data["keywords"] or {},
+                "program": data["program"],
             }
             if 'cbs_metadata' in data:
                 packet['cbs_metadata'] = data['cbs_metadata']
@@ -547,6 +546,7 @@ class QuarticComputer(BaseComputer):
                 "method": self.method,
                 "basis": data["basis"],
                 "keywords": data["keywords"] or {},
+                "program": data["program"],
             }
             if 'cbs_metadata' in data:
                 packet['cbs_metadata'] = data['cbs_metadata']
@@ -656,46 +656,3 @@ class QuarticComputer(BaseComputer):
               })
 
         return quartic_result
-
-def task_planner(method: str, molecule: psi4.core.Molecule, **kwargs) -> QuarticComputer:
-    """
-    Generates computer for finite difference calcutations
-
-    Parameters
-    ----------
-    method : str
-        Quantum chemistry method
-    molecule: psi4.core.Molecule
-        Input molecule
-
-    Returns
-    -------
-    QuarticComputer
-        Computer for finite difference calculations
-    """
-    # keywords are the psi4 option keywords
-    keywords = psi4.p4util.prepare_options_for_set_options()
-    driver = "hessian"
-    dermode = kwargs["options"]["FD"]
-    method = method.lower()
-    basis = keywords.pop("BASIS", "(auto)")
-
-    # Expand CBS methods
-    method, basis, cbsmeta = expand_cbs_methods(method=method, basis=basis, driver=driver)
-    if method in composite_procedures:
-        kwargs.update(cbsmeta)
-        kwargs.update({'cbs_metadata': composite_procedures[method](**kwargs)})
-        method = 'cbs'
-
-    packet = {"molecule": molecule, "driver": driver, "method": method, "basis": basis, "keywords": keywords}
-
-    if method == "cbs":
-        kwargs.update(cbsmeta)
-        logger.info(
-            f'PLANNING FD(CBS):  dermode={dermode} packet={packet} kw={kwargs}')
-        return QuarticComputer(**packet, computer=CompositeComputer, **kwargs)
-
-    else:
-        logger.info(
-            f'PLANNING FD:  dermode={dermode} keywords={keywords} kw={kwargs}')
-        return QuarticComputer(**packet, **kwargs)
