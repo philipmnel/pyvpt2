@@ -4,10 +4,19 @@ try:
     from pydantic.v1 import Field
 except ImportError:
     from pydantic import Field
+
 from qcelemental.models import Molecule
 from qcelemental.models.basemodels import ProtoModel
 from qcelemental.models.common_models import Model
+from qcelemental.models.procedures import QCInputSpecification
 from qcelemental.models.types import Array
+
+
+class VPTInput(ProtoModel):
+    molecule: Molecule = Field(..., description="molecule")
+    keywords: Dict[str, Any] = Field({}, description="pyvpt2 kwargs")
+    input_specification: QCInputSpecification = Field(..., description="qc input")
+    #provenance
 
 
 class VPTResult(ProtoModel):

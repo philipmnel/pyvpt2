@@ -533,6 +533,8 @@ class QuarticComputer(BaseComputer):
 
             # Load in displacement into the active molecule
             clone.set_geometry(psi4.core.Matrix.from_array(displacement["geometry"]))
+            #clone.update({"geometry": displacement["geometry"]})
+            #clone = Molecule(**clone)
 
             # If the user insists on symmetry, weaken it if some is lost when displacing.
             # or 'fix_symmetry' in self.findifrec.molecule

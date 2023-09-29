@@ -10,7 +10,7 @@ from .task_base import AtomicComputer, BaseComputer
 
 logger = logging.getLogger(f"psi4.{__name__}")
 
-def hessian_planner(method: str, molecule: psi4.core.Molecule, **kwargs) -> QuarticComputer:
+def hessian_planner(molecule: psi4.core.Molecule, qc_spec, **kwargs) -> QuarticComputer:
     """
     Generates computer for finite difference calcutations
 
@@ -28,18 +28,21 @@ def hessian_planner(method: str, molecule: psi4.core.Molecule, **kwargs) -> Quar
     """
     # keywords are the psi4 option keywords
 
-    keywords = kwargs["QC_KWARGS"]
-    program = kwargs["QC_PROGRAM"]
+    # findif computer is expecting a psi4 molecule
+    molecule = psi4.core.Molecule.from_schema(molecule.dict())
+
+    keywords = qc_spec.keywords
+    program = kwargs.get("QC_PROGRAM")
     if keywords == {} and program == "psi4":
         keywords = psi4.p4util.prepare_options_for_set_options()
     keywords.setdefault("function_kwargs", {})
 
     der_dict = {"ENERGY": 0, "GRADIENT": 1, "HESSIAN": 2}
     dermode = kwargs["FD"]
-    driver = "hessian"
+    driver = dermode.lower()
     dermode = [2, der_dict[dermode]]
-    method = method.lower()
-    basis = keywords.pop("BASIS", "(auto)")
+    method = qc_spec.model.method
+    basis = qc_spec.model.basis
     findif_kwargs = {"findif_stencil_size": 5, "findif_step_size": 0.005, }
 
     # Expand CBS methods
@@ -84,7 +87,7 @@ def hessian_planner(method: str, molecule: psi4.core.Molecule, **kwargs) -> Quar
                                            **findif_kwargs,
                                            **kwargs)
 
-def quartic_planner(method: str, molecule: psi4.core.Molecule, **kwargs) -> QuarticComputer:
+def quartic_planner(molecule: psi4.core.Molecule, qc_spec, **kwargs) -> QuarticComputer:
     """
     Generates computer for finite difference calcutations
 
@@ -102,15 +105,15 @@ def quartic_planner(method: str, molecule: psi4.core.Molecule, **kwargs) -> Quar
     """
     # keywords are the psi4 option keywords
 
-    keywords = kwargs["options"]["QC_KWARGS"]
+    keywords = qc_spec.keywords
     program = kwargs["options"]["QC_PROGRAM"]
     if keywords == {} and program == "psi4":
         keywords = psi4.p4util.prepare_options_for_set_options()
 
     driver = "hessian"
     dermode = kwargs["options"]["FD"]
-    method = method.lower()
-    basis = keywords.pop("BASIS", "(auto)")
+    method = qc_spec.model.method
+    basis = qc_spec.model.basis
 
     # Expand CBS methods
     method, basis, cbsmeta = expand_cbs_methods(method=method, basis=basis, driver=driver)

@@ -106,6 +106,13 @@ class AtomicComputer(BaseComputer):
     def plan(self) -> AtomicInput:
         """Form QCSchema input from member data."""
 
+        keywords = self.keywords
+        if keywords.get("function_kwargs", {}) is {}:
+            try:
+                keywords.pop("function_kwargs")
+            except:
+                pass
+
         atomic_model = AtomicInput(**{
             "molecule": self.molecule.to_schema(dtype=2),
             "driver": self.driver,
@@ -113,7 +120,7 @@ class AtomicComputer(BaseComputer):
                 "method": self.method,
                 "basis": self.basis
             },
-            "keywords": self.keywords.pop("function_kwargs"),
+            "keywords": keywords,
             "protocols": {
                 "stdout": True,
             },

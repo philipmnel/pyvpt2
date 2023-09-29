@@ -14,7 +14,7 @@ from qcelemental.models import AtomicResult
 from . import quartic
 from .constants import *
 from .fermi_solver import Interaction, State, fermi_solver
-from .result import VPTResult
+from .result import VPTInput, VPTResult
 from .task_base import AtomicComputer
 from .task_planner import hessian_planner, quartic_planner
 
@@ -234,6 +234,12 @@ def check_rotor(mol: psi4.core.Molecule):
 
     tol = 1e-6
     rot_const = mol.rotational_constants().np
+    #inertia_tensor = mol.inertia_tensor().np
+    #inertiavals, inertiavecs  = np.linalg.eig(inertia_tensor)
+    #with np.errstate(divide = 'ignore'):
+        #B = np.where(inertiavals == 0.0, 0.0, h / (8 * np.pi ** 2 * c * inertiavals))
+    #rot_const /= kg_to_amu * meter_to_bohr ** 2
+
     for i in range(3):
         if rot_const[i] is None:
             rot_const[i] = 0.0
@@ -267,6 +273,37 @@ def check_rotor(mol: psi4.core.Molecule):
         rotor_type = 'RT_ASYMMETRIC_TOP'  # IA <  IB <  IC       A >  B >  C
     return rotor_type
 
+def vpt2_from_schema(inp: VPTInput) -> VPTResult:
+
+    from qcelemental.models.molecule import Molecule
+
+    mol = inp.molecule
+    kwargs = process_options_keywords(**inp.keywords)
+    qc_specification = inp.input_specification
+
+    mol = mol.orient_molecule()
+    mol = mol.dict()
+    mol.update({"fix_com": True, "fix_orientation": True})
+    mol = Molecule(**mol)
+    #rotor_type = check_rotor(mol)
+
+    plan = hessian_planner(mol, qc_specification, **kwargs)
+
+    if kwargs.get("RETURN_PLAN", False):
+        return plan
+    else:
+        with psi4.p4util.hold_options_state():
+            plan.compute()
+        harmonic_result = plan.get_results()
+
+    plan = vpt2_from_harmonic(harmonic_result, qc_specification, **kwargs)
+    plan.compute()
+    quartic_result = plan.get_results()
+    result_dict = process_vpt2(quartic_result, **kwargs)
+
+    return result_dict
+
+
 
 def vpt2(mol: psi4.core.Molecule, **kwargs) -> Dict:
     """
@@ -290,8 +327,8 @@ def vpt2(mol: psi4.core.Molecule, **kwargs) -> Dict:
     mol.fix_orientation(True)
     rotor_type = check_rotor(mol)
 
-    if not (rotor_type in ["RT_LINEAR", "RT_ASYMMETRIC_TOP"]):
-        raise Exception("pyVPT2 can only be run on linear or asymmetric tops. Detected rotor type is {}".format(rotor_type))
+    #if not (rotor_type in ["RT_LINEAR", "RT_ASYMMETRIC_TOP"]):
+    #    raise Exception("pyVPT2 can only be run on linear or asymmetric tops. Detected rotor type is {}".format(rotor_type))
 
     plan = harmonic(mol, **kwargs)
     if kwargs.get("RETURN_PLAN", False):
@@ -308,7 +345,7 @@ def vpt2(mol: psi4.core.Molecule, **kwargs) -> Dict:
 
     return result_dict
 
-def vpt2_from_harmonic(harmonic_result: AtomicResult, **kwargs) -> quartic.QuarticComputer:
+def vpt2_from_harmonic(harmonic_result: AtomicResult, qc_spec, **kwargs) -> quartic.QuarticComputer:
     """
     Peforms VPT2 calculation starting from harmonic results
 
@@ -327,9 +364,8 @@ def vpt2_from_harmonic(harmonic_result: AtomicResult, **kwargs) -> quartic.Quart
     harm = process_harmonic(wfn, **kwargs)
     mol = wfn.molecule()
 
-    method = kwargs.get("METHOD2", kwargs.get("METHOD")) # If no method2, then method (default)
     kwargs = {"options": kwargs, "harm": harm}
-    plan = quartic_planner(method=method, molecule=mol, **kwargs)
+    plan = quartic_planner(molecule=mol, qc_spec=qc_spec, **kwargs)
 
     return plan
 
