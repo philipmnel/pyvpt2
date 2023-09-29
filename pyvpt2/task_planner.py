@@ -58,7 +58,7 @@ def hessian_planner(molecule: psi4.core.Molecule, qc_spec, **kwargs) -> QuarticC
         if program not in ["psi4"]:
             raise AssertionError("Composite methods enabled only for psi4 currently")
 
-        kwargs.update(cbsmeta)
+        findif_kwargs.update(cbsmeta)
 
         if driver == "hessian":
             logger.info('PLANNING CBS:  packet={packet} kw={findif_kwargs}')
