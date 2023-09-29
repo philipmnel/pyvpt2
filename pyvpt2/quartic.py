@@ -485,7 +485,7 @@ class QuarticComputer(BaseComputer):
 
         BaseComputer.__init__(self, **data)
 
-        data['keywords']['PARENT_SYMMETRY'] = self.molecule.point_group().full_name()
+        #data['keywords']['PARENT_SYMMETRY'] = self.molecule.point_group().full_name()
 
         self.method = data['method']
 
@@ -538,7 +538,7 @@ class QuarticComputer(BaseComputer):
 
             # If the user insists on symmetry, weaken it if some is lost when displacing.
             # or 'fix_symmetry' in self.findifrec.molecule
-            logger.debug(f'SYMM {clone.schoenflies_symbol()}')
+            #logger.debug(f'SYMM {clone.schoenflies_symbol()}')
             if self.molecule.symmetry_from_input():
                 disp_group = clone.find_highest_point_group()
                 new_bits = parent_group.bits() & disp_group.bits()

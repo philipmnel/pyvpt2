@@ -48,11 +48,11 @@ def hessian_planner(molecule: psi4.core.Molecule, qc_spec, **kwargs) -> QuarticC
     # Expand CBS methods
     method, basis, cbsmeta = expand_cbs_methods(method=method, basis=basis, driver=driver)
     if method in composite_procedures:
-        kwargs.update(cbsmeta)
-        kwargs.update({'cbs_metadata': composite_procedures[method](**kwargs)})
+        findif_kwargs.update(cbsmeta)
+        findif_kwargs.update({'cbs_metadata': composite_procedures[method](**kwargs)})
         method = 'cbs'
 
-    packet = {"molecule": molecule, "driver": driver, "method": method, "basis": basis, "keywords": keywords, "program": program}
+    packet = {"molecule": molecule, "driver": "hessian", "method": method, "basis": basis, "keywords": keywords, "program": program}
 
     if method == "cbs":
         if program not in ["psi4"]:
@@ -61,31 +61,29 @@ def hessian_planner(molecule: psi4.core.Molecule, qc_spec, **kwargs) -> QuarticC
         kwargs.update(cbsmeta)
 
         if driver == "hessian":
-            logger.info('PLANNING CBS:  packet={packet} kw={kwargs}')
-            return CompositeComputer(**packet, **kwargs)
+            logger.info('PLANNING CBS:  packet={packet} kw={findif_kwargs}')
+            return CompositeComputer(**packet, **findif_kwargs)
 
         else:
             logger.info(
-                f'PLANNING FD(CBS):  dermode={dermode} packet={packet} kw={kwargs}')
+                f'PLANNING FD(CBS):  dermode={dermode} packet={packet} kw={findif_kwargs}')
             return FiniteDifferenceComputer(**packet,
                                            findif_mode=dermode,
                                            computer=CompositeComputer,
-                                           **findif_kwargs,
-                                           **kwargs)
+                                           **findif_kwargs,)
 
     else:
         if driver == "hessian":
-            logger.info('PLANNING ATOMIC:  packet={packet} kw={kwargs}')
-            return AtomicComputer(**packet, **kwargs)
+            logger.info('PLANNING ATOMIC:  packet={packet} kw={findif_kwargs}')
+            return AtomicComputer(**packet, **findif_kwargs)
 
         else:
             logger.info(
-                f'PLANNING FD:  dermode={dermode} packet={packet} kw={kwargs}')
+                f'PLANNING FD:  dermode={dermode} packet={packet} kw={findif_kwargs}')
             return FiniteDifferenceComputer(**packet,
                                            findif_mode=dermode,
                                            computer=AtomicComputer,
-                                           **findif_kwargs,
-                                           **kwargs)
+                                           **findif_kwargs,)
 
 def quartic_planner(molecule: psi4.core.Molecule, qc_spec, **kwargs) -> QuarticComputer:
     """
