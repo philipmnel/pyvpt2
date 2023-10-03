@@ -107,8 +107,13 @@ class AtomicComputer(BaseComputer):
         """Form QCSchema input from member data."""
 
         keywords = self.keywords
-        if keywords.get("function_kwargs", {"dont pop if I dont exist :)"}) == {}:
-                keywords.pop("function_kwargs")
+        if keywords.get("function_kwargs", None) is not None:
+            keywords.pop("function_kwargs")
+        if keywords.get("PARENT_SYMMETRY", None) is not None:
+            keywords.pop("PARENT_SYMMETRY")
+
+        if keywords.get("function_kwargs"):
+            print(keywords.get("function_kwargs"))
 
         atomic_model = AtomicInput(**{
             "molecule": self.molecule.to_schema(dtype=2),

@@ -1,22 +1,35 @@
 from typing import Any, Dict, Optional
 
 try:
-    from pydantic.v1 import Field
+    from pydantic.v1 import Field, conlist
 except ImportError:
-    from pydantic import Field
+    from pydantic import Field, conlist
 
 from qcelemental.models import Molecule
 from qcelemental.models.basemodels import ProtoModel
-from qcelemental.models.common_models import Model
+from qcelemental.models.common_models import Model, Provenance
 from qcelemental.models.procedures import QCInputSpecification
 from qcelemental.models.types import Array
 
+#from pyvpt2 import __version__
+
+
+def provenance_stamp() -> Dict[str, str]:
+    """
+    Return provenance stamp for pyvpt2
+    """
+    provenance = {
+        "creator": "pyVPT2",
+        "version": 0.0,
+        "routine": "VPT2"
+    }
+    return provenance
 
 class VPTInput(ProtoModel):
     molecule: Molecule = Field(..., description="molecule")
     keywords: Dict[str, Any] = Field({}, description="pyvpt2 kwargs")
-    input_specification: QCInputSpecification = Field(..., description="qc input")
-    #provenance
+    input_specification: conlist(item_type=QCInputSpecification, min_items=1, max_items=2) = Field(..., description="qc input")
+    #provenance: Provenance = Field(Provenance(**provenance_stamp()), description="provenance")
 
 
 class VPTResult(ProtoModel):
@@ -32,3 +45,4 @@ class VPTResult(ProtoModel):
     phi_ijk: Array[float] = Field(..., description="Cubic derivatives")
     phi_iijj: Array[float] = Field(..., description="Semi-diagonal quartic derivatives")
     extras: Dict[str, Any] = Field({}, description="Fun extras, e.g. depertubed freqs")
+    #provenance: Provenance = Field(..., description="provenance")

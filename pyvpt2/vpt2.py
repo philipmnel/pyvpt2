@@ -14,7 +14,7 @@ from qcelemental.models import AtomicResult
 from . import quartic
 from .constants import *
 from .fermi_solver import Interaction, State, fermi_solver
-from .result import VPTInput, VPTResult
+from .schema import VPTInput, VPTResult
 from .task_base import AtomicComputer
 from .task_planner import hessian_planner, quartic_planner
 
@@ -199,18 +199,27 @@ def process_options_keywords(**kwargs) -> Dict:
 
     kwargs = {k.upper(): v for k, v in sorted(kwargs.items())}
 
-    kwargs.setdefault("DISP_SIZE", 0.05)
-    kwargs.setdefault("METHOD", "SCF")
-    kwargs.setdefault("METHOD_2", None)
-    kwargs.setdefault("FD", "HESSIAN")
-    kwargs.setdefault("FERMI", True)
-    kwargs.setdefault("GVPT2", False)
-    kwargs.setdefault("FERMI_OMEGA_THRESH", 200)
-    kwargs.setdefault("FERMI_K_THRESH", 1)
-    kwargs.setdefault("RETURN_PLAN", False)
-    kwargs.setdefault("VPT2_OMEGA_THRESH", 1)
-    kwargs.setdefault("QC_PROGRAM", "psi4")
-    kwargs.setdefault("QC_KWARGS", {})
+    keyword_defaults = {
+        "DISP_SIZE": 0.05,
+        "METHOD": "SCF",
+        "METHOD_2": None,
+        "FD": "HESSIAN",
+        "FERMI": True,
+        "GVPT2": False,
+        "FERMI_OMEGA_THRESH": 200,
+        "FERMI_K_THRESH": 1,
+        "RETURN_PLAN": False,
+        "VPT2_OMEGA_THRESH": 1,
+        "QC_PROGRAM": "psi4",
+    }
+
+    for k in kwargs.keys():
+        if k not in keyword_defaults.keys():
+            raise Warning(f"Ignoring unknown keyword {k}")
+
+    for k, v in keyword_defaults.items():
+        kwargs.setdefault(k, v)
+
 
     return kwargs
 
@@ -277,9 +286,21 @@ def vpt2_from_schema(inp: VPTInput) -> VPTResult:
 
     from qcelemental.models.molecule import Molecule
 
+    if isinstance(inp, dict):
+        inp = VPTInput(**inp)
+    elif isinstance(inp, VPTInput):
+        inp = inp.copy()
+    else:
+        raise AssertionError("Input type not recognized.")
+
+
     mol = inp.molecule
     kwargs = process_options_keywords(**inp.keywords)
-    qc_specification = inp.input_specification
+    qc_specification = inp.input_specification[0]
+    if len(inp.input_specification) == 1:
+        qc_specification2 = inp.input_specification[0]
+    else:
+        qc_specification2 = inp.input_specification[1]
 
     mol = mol.orient_molecule()
     mol = mol.dict()
@@ -296,13 +317,12 @@ def vpt2_from_schema(inp: VPTInput) -> VPTResult:
             plan.compute()
         harmonic_result = plan.get_results()
 
-    plan = vpt2_from_harmonic(harmonic_result, qc_specification, **kwargs)
+    plan = vpt2_from_harmonic(harmonic_result, qc_specification2, **kwargs)
     plan.compute()
     quartic_result = plan.get_results()
     result_dict = process_vpt2(quartic_result, **kwargs)
 
     return result_dict
-
 
 
 def vpt2(mol: psi4.core.Molecule, **kwargs) -> Dict:
