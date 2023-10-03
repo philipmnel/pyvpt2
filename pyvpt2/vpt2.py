@@ -21,24 +21,6 @@ from .task_planner import hessian_planner, quartic_planner
 logger = logging.getLogger(f"psi4.{__name__}")
 
 TaskComputers = Union[AtomicComputer, CompositeComputer, FiniteDifferenceComputer]
-def harmonic(mol: psi4.core.Molecule, **kwargs) -> TaskComputers:
-    """
-    Generates plan for harmonic reference calculation
-
-    Parameters
-    ----------
-    mol : psi4.core.Molecule
-        Input molecule
-
-    Returns
-    -------
-    TaskComputers
-        Computer for reference harmonic calculation
-    """
-
-    method = kwargs["METHOD"]
-    plan = hessian_planner(method=method, molecule=mol, **kwargs)
-    return plan
 
 def _findif_schema_to_wfn(findif_model: AtomicResult) -> psi4.core.Wavefunction:
     """Helper function to produce Wavefunction and Psi4 files from a FiniteDifference-flavored AtomicResult."""
