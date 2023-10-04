@@ -4,26 +4,28 @@ import psi4
 from psi4.driver.driver_cbs import CompositeComputer, composite_procedures
 from psi4.driver.driver_findif import FiniteDifferenceComputer
 from psi4.driver.task_planner import expand_cbs_methods
+from qcelemental.models import Molecule
+from qcelemental.models.procedures import QCInputSpecification
 
 from .quartic import QuarticComputer
 from .task_base import AtomicComputer, BaseComputer
 
 logger = logging.getLogger(f"psi4.{__name__}")
 
-def hessian_planner(molecule: psi4.core.Molecule, qc_spec, **kwargs) -> QuarticComputer:
+def hessian_planner(molecule: Molecule, qc_spec: QCInputSpecification, **kwargs) -> FiniteDifferenceComputer:
     """
-    Generates computer for finite difference calcutations
+    Generates computer for hessian finite difference calcutations
 
     Parameters
     ----------
-    method : str
-        Quantum chemistry method
-    molecule: psi4.core.Molecule
+    molecule: Molecule
         Input molecule
+    qc_spec: QCInputSpecification
+        Input specification
 
     Returns
     -------
-    QuarticComputer
+    FiniteDifference
         Computer for finite difference calculations
     """
     # keywords are the psi4 option keywords
@@ -85,16 +87,16 @@ def hessian_planner(molecule: psi4.core.Molecule, qc_spec, **kwargs) -> QuarticC
                                            computer=AtomicComputer,
                                            **findif_kwargs,)
 
-def quartic_planner(molecule: psi4.core.Molecule, qc_spec, **kwargs) -> QuarticComputer:
+def quartic_planner(molecule: Molecule, qc_spec: QCInputSpecification, **kwargs) -> QuarticComputer:
     """
-    Generates computer for finite difference calcutations
+    Generates computer for quartic finite difference calcutations
 
     Parameters
     ----------
-    method : str
-        Quantum chemistry method
-    molecule: psi4.core.Molecule
+    molecule: Molecule
         Input molecule
+    qc_spec: QCInputSpecification
+        Input specification
 
     Returns
     -------

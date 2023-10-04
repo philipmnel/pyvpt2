@@ -183,8 +183,6 @@ def process_options_keywords(**kwargs) -> Dict:
 
     keyword_defaults = {
         "DISP_SIZE": 0.05,
-        "METHOD": "SCF",
-        "METHOD_2": None,
         "FD": "HESSIAN",
         "FERMI": True,
         "GVPT2": False,
@@ -193,6 +191,7 @@ def process_options_keywords(**kwargs) -> Dict:
         "RETURN_PLAN": False,
         "VPT2_OMEGA_THRESH": 1,
         "QC_PROGRAM": "psi4",
+        "MULTILEVEL": False,
     }
 
     for k in kwargs.keys():
@@ -283,6 +282,7 @@ def vpt2_from_schema(inp: VPTInput) -> VPTResult:
         qc_specification2 = inp.input_specification[0]
     else:
         qc_specification2 = inp.input_specification[1]
+        kwargs.update({"MULTILEVEL": True})
 
     mol = mol.orient_molecule()
     mol = mol.dict()
