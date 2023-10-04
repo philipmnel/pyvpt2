@@ -191,7 +191,7 @@ def _geom_generator(mol: psi4.core.Molecule, data: Dict, mode: int) -> Dict:
                 append_geoms((index1, index2, index3), val)
 
     #  reference geometry only if we're doing multi-level calc
-    if data["options"].get("METHOD2", False):
+    if data["options"].get("MULTILEVEL", False):
         findifrec["reference"]["geometry"] = ref_geom
         findifrec["reference"]["do_reference"] = True
 

@@ -9,6 +9,7 @@ import psi4
 from psi4.driver.driver_cbs import CompositeComputer
 from psi4.driver.driver_findif import FiniteDifferenceComputer
 from qcelemental.models import AtomicResult
+from qcelemental.models.procedures import QCInputSpecification
 
 #Local imports:
 from . import quartic
@@ -361,6 +362,13 @@ def vpt2_from_harmonic(harmonic_result: AtomicResult, qc_spec, **kwargs) -> quar
     QuarticComputer
         Computer for quartic finite difference calculation
     """
+    if isinstance(qc_spec, dict):
+        qc_spec = QCInputSpecification(**qc_spec)
+    elif isinstance(qc_spec, QCInputSpecification):
+        qc_spec = qc_spec.copy()
+    else:
+        raise AssertionError("Input type not recognized.")
+
     kwargs = process_options_keywords(**kwargs)
     wfn = _findif_schema_to_wfn(harmonic_result)
     harm = process_harmonic(wfn, **kwargs)

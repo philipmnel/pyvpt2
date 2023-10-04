@@ -1,5 +1,3 @@
-import time
-
 import psi4
 import pytest
 
@@ -19,9 +17,6 @@ def test_h2o_snowflake_vpt2(driver):
     client = snowflake.client()
 
     mol = psi4.geometry("""
-    nocom
-    noreorient
-
     O
     H 1 R1
     H 1 R2 2 A
@@ -29,33 +24,38 @@ def test_h2o_snowflake_vpt2(driver):
     A         =  106.3819454243
     R1        =    0.9392155213
     R2        =    0.9392155213
-    symmetry c2v
     """)
 
-    mol.move_to_com()
-    mol.fix_com(True)
-    mol.fix_orientation(True)
-
-    psi4.set_options({'d_convergence': 1e-10,
-                'e_convergence': 1e-10,
-                'points': 5})
-
-    options = {'METHOD': 'scf/cc-pv[dt]z',
-            'FD': driver,
+    options = {'FD': driver,
             'DISP_SIZE': 0.05,
-            'RETURN_PLAN': True}
+            'RETURN_PLAN': True,
+            'QC_PROGRAM': 'psi4'}
 
     ref_omega = [1747.4491, 4129.8877, 4230.4755]
     ref_anharmonic = [-53.8382, -157.1904, -171.4518]
     ref_harm_zpve = 5053.9062
     ref_zpve_corr = -69.5146
 
-    harmonic_plan = pyvpt2.vpt2(mol, **options)
+    inp = {
+        "molecule": mol.to_schema(dtype=2),
+        "keywords": options,
+        "input_specification": [{
+            "model": {
+                "method": "scf/cc-pv[dt]z",
+                "basis": "(auto)"},
+            "keywords": {
+                "e_convergence": 10,
+                "d_convergence": 10,
+            }
+        }]
+    }
+
+    harmonic_plan = pyvpt2.vpt2_from_schema(inp)
     harmonic_plan.compute(client=client)
     snowflake.await_results()
     harmonic_ret = harmonic_plan.get_results(client=client)
 
-    plan = pyvpt2.vpt2_from_harmonic(harmonic_ret, **options)
+    plan = pyvpt2.vpt2_from_harmonic(harmonic_ret, qc_spec=inp["input_specification"][0], **options)
     plan.compute(client=client)
     snowflake.await_results()
     ret = plan.get_results(client=client)

@@ -29,8 +29,7 @@ def test_h2o_vpt2(driver, program):
     A    =      105.5028950965639
     """)
 
-    options = {'METHOD': 'scf/6-31G*',
-            'FD': driver,
+    options = {'FD': driver,
             'DISP_SIZE': 0.05,
             'QC_PROGRAM': program}
 
