@@ -26,10 +26,10 @@ def provenance_stamp() -> Dict[str, str]:
     return provenance
 
 class VPTInput(ProtoModel):
-    molecule: Molecule = Field(..., description="molecule")
-    keywords: Dict[str, Any] = Field({}, description="pyvpt2 kwargs")
-    input_specification: conlist(item_type=QCInputSpecification, min_items=1, max_items=2) = Field(..., description="qc input")
-    #provenance: Provenance = Field(Provenance(**provenance_stamp()), description="provenance")
+    molecule: Molecule = Field(..., description="Input molecule")
+    keywords: Dict[str, Any] = Field({}, description="pyVPT2 keywords")
+    input_specification: conlist(item_type=QCInputSpecification, min_items=1, max_items=2) = Field(..., description="QC input model")
+    provenance: Provenance = Field(Provenance(**provenance_stamp()), description="Provenance")
 
 
 class VPTResult(ProtoModel):
@@ -45,4 +45,4 @@ class VPTResult(ProtoModel):
     phi_ijk: Array[float] = Field(..., description="Cubic derivatives")
     phi_iijj: Array[float] = Field(..., description="Semi-diagonal quartic derivatives")
     extras: Dict[str, Any] = Field({}, description="Fun extras, e.g. depertubed freqs")
-    #provenance: Provenance = Field(..., description="provenance")
+    provenance: Provenance = Field(..., description="Provenance")

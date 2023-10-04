@@ -14,7 +14,7 @@ from qcelemental.models import AtomicResult
 from . import quartic
 from .constants import *
 from .fermi_solver import Interaction, State, fermi_solver
-from .schema import VPTInput, VPTResult
+from .schema import VPTInput, VPTResult, provenance_stamp
 from .task_base import AtomicComputer
 from .task_planner import hessian_planner, quartic_planner
 
@@ -698,7 +698,8 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
         chi = chi,
         phi_ijk = phi_ijk,
         phi_iijj = phi_iijj,
-        extras = extras
+        extras = extras,
+        provenance = provenance_stamp()
         )
 
     v_ind_print = harm["v_ind_omitted"]
