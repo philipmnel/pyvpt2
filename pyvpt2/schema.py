@@ -44,5 +44,7 @@ class VPTResult(ProtoModel):
     chi: Array[float] = Field(..., description="VPT2 anharmonicity constants")
     phi_ijk: Array[float] = Field(..., description="Cubic derivatives")
     phi_iijj: Array[float] = Field(..., description="Semi-diagonal quartic derivatives")
+    rotational_constants: Array[float] = Field(..., description="Rotational constants")
+    zeta: Array[float] = Field(..., description="Coriolis coupling constants")
     extras: Dict[str, Any] = Field({}, description="Fun extras, e.g. depertubed freqs")
     provenance: Provenance = Field(..., description="Provenance")

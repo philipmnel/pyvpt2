@@ -143,7 +143,7 @@ def coriolis(mol: psi4.core.Molecule, q: np.ndarray) -> Tuple[np.ndarray, np.nda
     # Need to use inertia_tensor() to preserve ordering of axes
     inertiavals, inertiavecs  = np.linalg.eig(mol.inertia_tensor().np)
     with np.errstate(divide = 'ignore'):
-        B = np.where(inertiavals == 0.0, 0.0, h / (8 * np.pi ** 2 * c * inertiavals))
+        B = np.where(inertiavals < 1e-4, 0.0, h / (8 * np.pi ** 2 * c * inertiavals))
     B /= kg_to_amu * meter_to_bohr ** 2
 
     Mxa = np.matmul(inertiavecs, np.matmul(np.array([[0, 0, 0], [0, 0, 1], [0, -1, 0]]), inertiavecs.T))
@@ -706,6 +706,8 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
         chi = chi,
         phi_ijk = phi_ijk,
         phi_iijj = phi_iijj,
+        rotational_constant = B,
+        zeta = zeta,
         extras = extras,
         provenance = provenance_stamp()
         )
@@ -789,6 +791,8 @@ def print_result(results: VPTResult, v_ind: np.ndarray):
     zpve = results.anharmonic_zpve
     phi_ijk = results.phi_ijk
     phi_iijj = results.phi_iijj
+    B = results.rotational_constants
+    zeta = results.zeta
 
     print("\n\nCubic (cm-1):")
     for [i,j,k] in itertools.product(v_ind, repeat=3):
@@ -800,13 +804,13 @@ def print_result(results: VPTResult, v_ind: np.ndarray):
         if abs(phi_iijj[i, j]) > 10:
             print(i + 1, i + 1, j + 1, j + 1, "    ", phi_iijj[i, j])
 
-    # print("\nB Rotational Constants (cm-1)")
-    # print(B[0], B[1], B[2], sep='    ')
+    print("\nB Rotational Constants (cm-1)")
+    print(B[0], B[1], B[2], sep='    ')
 
-    #print("\nCoriolis Constants (cm-1):")
-    #for [i,j,k] in itertools.product(range(3), v_ind, v_ind):
-        #if abs(zeta[i, j, k]) > 1e-5:
-            #print(i + 1, j + 1, k + 1, "    ", zeta[i, j, k])
+    print("\nCoriolis Constants (cm-1):")
+    for [i,j,k] in itertools.product(range(3), v_ind, v_ind):
+        if abs(zeta[i, j, k]) > 1e-5:
+            print(i + 1, j + 1, k + 1, "    ", zeta[i, j, k])
 
     #print("\nVPT2 analysis complete...")
     print("\nFundamentals (cm-1):")
