@@ -107,8 +107,8 @@ def _displace_cart(geom: np.ndarray, modes: np.ndarray, i_m: Iterator[Tuple], di
 
     Returns
     -------
-    np.ndarray
-        Displaced geometry
+    Tuple[np.ndarray, str]
+        Displaced geometry; label
     """
     label = []
     disp_geom = np.copy(geom)

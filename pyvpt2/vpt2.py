@@ -265,6 +265,19 @@ def check_rotor(mol: psi4.core.Molecule):
     return rotor_type
 
 def vpt2_from_schema(inp: VPTInput) -> VPTResult:
+    """
+    Performs vibrational pertubration theory calculation
+
+    Parameters
+    ----------
+    inp: VPInput
+        Input schema
+
+    Returns
+    -------
+    VPTResult
+        VPT2 results schema
+    """
 
     from qcelemental.models.molecule import Molecule
 
@@ -310,7 +323,8 @@ def vpt2_from_schema(inp: VPTInput) -> VPTResult:
 
 def vpt2(mol: psi4.core.Molecule, **kwargs) -> Dict:
     """
-    Performs vibrational pertubration theory calculation
+    Performs vibrational pertubration theory calculation)
+    (Deprecated)
 
     Parameters
     ----------
@@ -433,7 +447,7 @@ def identify_fermi(omega: np.ndarray, phi_ijk: np.ndarray, n_modes: np.ndarray, 
 
     return fermi_list
 
-def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
+def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
     """
     Calculate VPT2 results from quartic forces
 
@@ -444,8 +458,8 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
 
     Returns
     -------
-    Dict
-        Results dictionary for VPT2 caclutation
+    VPTResult
+        Results schema for VPT2 caclutation
     """
     kwargs = process_options_keywords(**kwargs)
     mol = psi4.core.Molecule.from_schema(quartic_result.molecule.dict())
@@ -692,7 +706,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
     if kwargs["FERMI"] and kwargs["GVPT2"]:
         deperturbed = anharmonic.copy()
         extras.update({"Deperturbed Freq": deperturbed})
-        fermi_nu, fermi_ind = process_fermi_solver(fermi_list, v_ind, anharmonic, overtone, band, phi_ijk)
+        fermi_nu, fermi_ind = process_fermi_solver(fermi_list, v_ind, anharmonic, overtone, band, phi_ijk) #this works in-place
 
     ret = VPTResult(
         molecule = quartic_result.molecule,
@@ -779,8 +793,8 @@ def print_result(results: VPTResult, v_ind: np.ndarray):
 
     Parameters
     ----------
-    results : VPT2
-        Dataclass of VPT2 results
+    results : VPTResult
+        Schema of VPT2 results
     v_ind : np.ndarray
         List of vibrational indices
     """
