@@ -13,7 +13,8 @@ def test_h2o_vpt2(driver, program):
         pytest.skip()
 
     qc_kwargs = {"psi4": {"e_convergence": 12,
-                          "puream": True},
+                          "puream": True,
+                          "scf_type": "direct"},
                  "cfour": {"SCF_CONV": 12},
                  "nwchem": {"scf": "",
                             "   thresh": 8,
