@@ -706,7 +706,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
         chi = chi,
         phi_ijk = phi_ijk,
         phi_iijj = phi_iijj,
-        rotational_constant = B,
+        rotational_constants = B,
         zeta = zeta,
         extras = extras,
         provenance = provenance_stamp()
