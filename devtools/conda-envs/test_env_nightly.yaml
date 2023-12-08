@@ -1,6 +1,5 @@
 name: test-nightly
 channels:
-  - qcarchive/label/next
   - conda-forge/label/libint_dev
   - conda-forge/label/psi4_dev
   - conda-forge
@@ -14,7 +13,7 @@ dependencies:
     # Base depends
   - python
   - pip
-  - pydantic
+  - pydantic < 2.0
 
     # Testing
   - pytest
