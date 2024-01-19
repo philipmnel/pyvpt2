@@ -156,11 +156,17 @@ class AtomicComputer(BaseComputer):
             # Build the molecule
             mol = Molecule(**self.molecule.to_schema(dtype=2))
 
+            keywords = self.keywords
+            if keywords.get("function_kwargs", None) is not None:
+                keywords.pop("function_kwargs")
+            if keywords.get("PARENT_SYMMETRY", None) is not None:
+                keywords.pop("PARENT_SYMMETRY")
+
             if not qca_next_branch:
                 # QCFractal v0.15.8
 
                 # Build the keywords
-                keyword_id = client.add_keywords([KeywordSet(values=self.keywords)])[0]
+                keyword_id = client.add_keywords([KeywordSet(values=keywords)])[0]
 
                 r = client.add_compute(self.program, self.method, self.basis, self.driver, keyword_id, [mol])
                 self.result_id = r.ids[0]
@@ -187,7 +193,7 @@ class AtomicComputer(BaseComputer):
                     driver=self.driver,
                     method=self.method,
                     basis=self.basis,
-                    keywords=self.keywords,
+                    keywords=keywords,
                     # protocols,
                 )
                 self.result_id = ids[0]
