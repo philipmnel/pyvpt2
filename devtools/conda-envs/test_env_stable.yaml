@@ -8,6 +8,7 @@ dependencies:
   - qcfractal=0.50
   - qcportal
   - qcelemental
+  - nwchem
 
     # Base depends
   - python
