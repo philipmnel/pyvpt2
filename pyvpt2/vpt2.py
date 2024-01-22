@@ -7,38 +7,51 @@ from typing import TYPE_CHECKING, Dict, List, Tuple, Union
 import numpy as np
 import psi4
 from psi4.driver.driver_cbs import CompositeComputer
-from psi4.driver.driver_findif import FiniteDifferenceComputer, _findif_schema_to_wfn
-from psi4.driver.task_base import AtomicComputer
+from psi4.driver.driver_findif import FiniteDifferenceComputer
 from qcelemental.models import AtomicResult
+from qcelemental.models.procedures import QCInputSpecification
 
 #Local imports:
 from . import quartic
 from .constants import *
 from .fermi_solver import Interaction, State, fermi_solver
-from .result import VPTResult
+from .schema import VPTInput, VPTResult, provenance_stamp
+from .task_base import AtomicComputer
+from .task_planner import hessian_planner, quartic_planner
 
 logger = logging.getLogger(f"psi4.{__name__}")
 
 TaskComputers = Union[AtomicComputer, CompositeComputer, FiniteDifferenceComputer]
-def harmonic(mol: psi4.core.Molecule, **kwargs) -> TaskComputers:
-    """
-    Generates plan for harmonic reference calculation
 
-    Parameters
-    ----------
-    mol : psi4.core.Molecule
-        Input molecule
+def _findif_schema_to_wfn(findif_model: AtomicResult) -> psi4.core.Wavefunction:
+    """Helper function to produce Wavefunction and Psi4 files from a FiniteDifference-flavored AtomicResult."""
 
-    Returns
-    -------
-    TaskComputers
-        Computer for reference harmonic calculation
-    """
+    # new skeleton wavefunction w/mol, highest-SCF basis (just to choose one), & not energy
+    mol = psi4.core.Molecule.from_schema(findif_model.molecule.dict(), nonphysical=True)
+    sbasis = "def2-svp" if (findif_model.model.basis == "(auto)") else findif_model.model.basis
+    basis = psi4.core.BasisSet.build(mol, "ORBITAL", sbasis, quiet=True)
+    wfn = psi4.core.Wavefunction(mol, basis)
+    if hasattr(findif_model.provenance, "module"):
+        wfn.set_module(findif_model.provenance.module)
 
-    method = kwargs["METHOD"]
-    dertype = kwargs["FD"]
-    plan = psi4.hessian(method, dertype=dertype, molecule=mol, return_plan=True)
-    return plan
+    # setting CURRENT E/G/H on wfn below catches Wfn.energy_, gradient_, hessian_
+    # setting CURRENT E/G/H on core below is authoritative P::e record
+    for obj in [psi4.core, wfn]:
+
+        ret_e = findif_model.properties.return_energy
+        ret_g = findif_model.properties.return_gradient
+        ret_h = findif_model.properties.return_hessian
+        if ret_e is not None:
+            obj.set_variable("CURRENT ENERGY", ret_e)
+        if ret_g is not None:
+            obj.set_variable("CURRENT GRADIENT", ret_g)
+        if ret_h is not None:
+            obj.set_variable("CURRENT HESSIAN", ret_h)
+        dipder = findif_model.extras["qcvars"].get("CURRENT DIPOLE GRADIENT", None)
+        if dipder is not None:
+            obj.set_variable("CURRENT DIPOLE GRADIENT", dipder)
+
+    return wfn
 
 def process_harmonic(wfn: psi4.core.Wavefunction, **kwargs) -> Dict:
     """
@@ -61,7 +74,8 @@ def process_harmonic(wfn: psi4.core.Wavefunction, **kwargs) -> Dict:
     kforce = frequency_analysis["k"].data
     trv = frequency_analysis["TRV"].data
     q = frequency_analysis["q"].data
-    intensities = frequency_analysis["IR_intensity"].data
+    if intensities := frequency_analysis.get("IR_intensities", None):
+        intensities = intensities.data
     n_modes = len(trv)
     omega_thresh = kwargs.get("VPT2_OMEGA_THRESH")
 
@@ -88,7 +102,9 @@ def process_harmonic(wfn: psi4.core.Wavefunction, **kwargs) -> Dict:
 
     harm = {}
     harm["E0"] = wfn.energy() # Energy
-    harm["G0"] = wfn.gradient().np # Gradient
+    G0 = wfn.gradient()
+    if G0 is not None:
+        harm["G0"] = G0.np # Gradient
     harm["H0"] = wfn.hessian().np # Hessian
     harm["omega"] = omega # Frequencies (cm-1)
     harm["modes"] = modes # Un mass weighted normal modes
@@ -127,7 +143,7 @@ def coriolis(mol: psi4.core.Molecule, q: np.ndarray) -> Tuple[np.ndarray, np.nda
     # Need to use inertia_tensor() to preserve ordering of axes
     inertiavals, inertiavecs  = np.linalg.eig(mol.inertia_tensor().np)
     with np.errstate(divide = 'ignore'):
-        B = np.where(inertiavals == 0.0, 0.0, h / (8 * np.pi ** 2 * c * inertiavals))
+        B = np.where(inertiavals < 1e-4, 0.0, h / (8 * np.pi ** 2 * c * inertiavals))
     B /= kg_to_amu * meter_to_bohr ** 2
 
     Mxa = np.matmul(inertiavecs, np.matmul(np.array([[0, 0, 0], [0, 0, 1], [0, -1, 0]]), inertiavecs.T))
@@ -166,16 +182,26 @@ def process_options_keywords(**kwargs) -> Dict:
 
     kwargs = {k.upper(): v for k, v in sorted(kwargs.items())}
 
-    kwargs.setdefault("DISP_SIZE", 0.05)
-    kwargs.setdefault("METHOD", "SCF")
-    kwargs.setdefault("METHOD_2", None)
-    kwargs.setdefault("FD", "HESSIAN")
-    kwargs.setdefault("FERMI", True)
-    kwargs.setdefault("GVPT2", False)
-    kwargs.setdefault("FERMI_OMEGA_THRESH", 200)
-    kwargs.setdefault("FERMI_K_THRESH", 1)
-    kwargs.setdefault("RETURN_PLAN", False)
-    kwargs.setdefault("VPT2_OMEGA_THRESH", 1)
+    keyword_defaults = {
+        "DISP_SIZE": 0.05,
+        "FD": "HESSIAN",
+        "FERMI": True,
+        "GVPT2": False,
+        "FERMI_OMEGA_THRESH": 200,
+        "FERMI_K_THRESH": 1,
+        "RETURN_PLAN": False,
+        "VPT2_OMEGA_THRESH": 1,
+        "QC_PROGRAM": "psi4",
+        "MULTILEVEL": False,
+    }
+
+    for k in kwargs.keys():
+        if k not in keyword_defaults.keys():
+            raise Warning(f"Ignoring unknown keyword {k}")
+
+    for k, v in keyword_defaults.items():
+        kwargs.setdefault(k, v)
+
 
     return kwargs
 
@@ -199,6 +225,12 @@ def check_rotor(mol: psi4.core.Molecule):
 
     tol = 1e-6
     rot_const = mol.rotational_constants().np
+    #inertia_tensor = mol.inertia_tensor().np
+    #inertiavals, inertiavecs  = np.linalg.eig(inertia_tensor)
+    #with np.errstate(divide = 'ignore'):
+        #B = np.where(inertiavals == 0.0, 0.0, h / (8 * np.pi ** 2 * c * inertiavals))
+    #rot_const /= kg_to_amu * meter_to_bohr ** 2
+
     for i in range(3):
         if rot_const[i] is None:
             rot_const[i] = 0.0
@@ -232,10 +264,67 @@ def check_rotor(mol: psi4.core.Molecule):
         rotor_type = 'RT_ASYMMETRIC_TOP'  # IA <  IB <  IC       A >  B >  C
     return rotor_type
 
+def vpt2_from_schema(inp: VPTInput) -> VPTResult:
+    """
+    Performs vibrational pertubration theory calculation
+
+    Parameters
+    ----------
+    inp: VPInput
+        Input schema
+
+    Returns
+    -------
+    VPTResult
+        VPT2 results schema
+    """
+
+    from qcelemental.models.molecule import Molecule
+
+    if isinstance(inp, dict):
+        inp = VPTInput(**inp)
+    elif isinstance(inp, VPTInput):
+        inp = inp.copy()
+    else:
+        raise AssertionError("Input type not recognized.")
+
+
+    mol = inp.molecule
+    kwargs = process_options_keywords(**inp.keywords)
+    qc_specification = inp.input_specification[0]
+    if len(inp.input_specification) == 1:
+        qc_specification2 = inp.input_specification[0]
+    else:
+        qc_specification2 = inp.input_specification[1]
+        kwargs.update({"MULTILEVEL": True})
+
+    mol = mol.orient_molecule()
+    mol = mol.dict()
+    mol.update({"fix_com": True, "fix_orientation": True})
+    mol = Molecule(**mol)
+    #rotor_type = check_rotor(mol)
+
+    plan = hessian_planner(mol, qc_specification, **kwargs)
+
+    if kwargs.get("RETURN_PLAN", False):
+        return plan
+    else:
+        with psi4.p4util.hold_options_state():
+            plan.compute()
+        harmonic_result = plan.get_results()
+
+    plan = vpt2_from_harmonic(harmonic_result, qc_specification2, **kwargs)
+    plan.compute()
+    quartic_result = plan.get_results()
+    result_dict = process_vpt2(quartic_result, **kwargs)
+
+    return result_dict
+
 
 def vpt2(mol: psi4.core.Molecule, **kwargs) -> Dict:
     """
-    Performs vibrational pertubration theory calculation
+    Performs vibrational pertubration theory calculation)
+    (Deprecated)
 
     Parameters
     ----------
@@ -255,8 +344,8 @@ def vpt2(mol: psi4.core.Molecule, **kwargs) -> Dict:
     mol.fix_orientation(True)
     rotor_type = check_rotor(mol)
 
-    if not (rotor_type in ["RT_LINEAR", "RT_ASYMMETRIC_TOP"]):
-        raise Exception("pyVPT2 can only be run on linear or asymmetric tops. Detected rotor type is {}".format(rotor_type))
+    #if not (rotor_type in ["RT_LINEAR", "RT_ASYMMETRIC_TOP"]):
+    #    raise Exception("pyVPT2 can only be run on linear or asymmetric tops. Detected rotor type is {}".format(rotor_type))
 
     plan = harmonic(mol, **kwargs)
     if kwargs.get("RETURN_PLAN", False):
@@ -273,7 +362,7 @@ def vpt2(mol: psi4.core.Molecule, **kwargs) -> Dict:
 
     return result_dict
 
-def vpt2_from_harmonic(harmonic_result: AtomicResult, **kwargs) -> quartic.QuarticComputer:
+def vpt2_from_harmonic(harmonic_result: AtomicResult, qc_spec, **kwargs) -> quartic.QuarticComputer:
     """
     Peforms VPT2 calculation starting from harmonic results
 
@@ -287,14 +376,20 @@ def vpt2_from_harmonic(harmonic_result: AtomicResult, **kwargs) -> quartic.Quart
     QuarticComputer
         Computer for quartic finite difference calculation
     """
+    if isinstance(qc_spec, dict):
+        qc_spec = QCInputSpecification(**qc_spec)
+    elif isinstance(qc_spec, QCInputSpecification):
+        qc_spec = qc_spec.copy()
+    else:
+        raise AssertionError("Input type not recognized.")
+
     kwargs = process_options_keywords(**kwargs)
     wfn = _findif_schema_to_wfn(harmonic_result)
     harm = process_harmonic(wfn, **kwargs)
     mol = wfn.molecule()
 
-    method = kwargs.get("METHOD2", kwargs.get("METHOD")) # If no method2, then method (default)
     kwargs = {"options": kwargs, "harm": harm}
-    plan = quartic.task_planner(method=method, molecule=mol, **kwargs)
+    plan = quartic_planner(molecule=mol, qc_spec=qc_spec, **kwargs)
 
     return plan
 
@@ -352,7 +447,7 @@ def identify_fermi(omega: np.ndarray, phi_ijk: np.ndarray, n_modes: np.ndarray, 
 
     return fermi_list
 
-def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
+def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
     """
     Calculate VPT2 results from quartic forces
 
@@ -363,8 +458,8 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
 
     Returns
     -------
-    Dict
-        Results dictionary for VPT2 caclutation
+    VPTResult
+        Results schema for VPT2 caclutation
     """
     kwargs = process_options_keywords(**kwargs)
     mol = psi4.core.Molecule.from_schema(quartic_result.molecule.dict())
@@ -611,7 +706,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
     if kwargs["FERMI"] and kwargs["GVPT2"]:
         deperturbed = anharmonic.copy()
         extras.update({"Deperturbed Freq": deperturbed})
-        fermi_nu, fermi_ind = process_fermi_solver(fermi_list, v_ind, anharmonic, overtone, band, phi_ijk)
+        fermi_nu, fermi_ind = process_fermi_solver(fermi_list, v_ind, anharmonic, overtone, band, phi_ijk) #this works in-place
 
     ret = VPTResult(
         molecule = quartic_result.molecule,
@@ -625,7 +720,10 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> Dict:
         chi = chi,
         phi_ijk = phi_ijk,
         phi_iijj = phi_iijj,
-        extras = extras
+        rotational_constants = B,
+        zeta = zeta,
+        extras = extras,
+        provenance = provenance_stamp()
         )
 
     v_ind_print = harm["v_ind_omitted"]
@@ -695,8 +793,8 @@ def print_result(results: VPTResult, v_ind: np.ndarray):
 
     Parameters
     ----------
-    results : VPT2
-        Dataclass of VPT2 results
+    results : VPTResult
+        Schema of VPT2 results
     v_ind : np.ndarray
         List of vibrational indices
     """
@@ -707,6 +805,8 @@ def print_result(results: VPTResult, v_ind: np.ndarray):
     zpve = results.anharmonic_zpve
     phi_ijk = results.phi_ijk
     phi_iijj = results.phi_iijj
+    B = results.rotational_constants
+    zeta = results.zeta
 
     print("\n\nCubic (cm-1):")
     for [i,j,k] in itertools.product(v_ind, repeat=3):
@@ -718,13 +818,13 @@ def print_result(results: VPTResult, v_ind: np.ndarray):
         if abs(phi_iijj[i, j]) > 10:
             print(i + 1, i + 1, j + 1, j + 1, "    ", phi_iijj[i, j])
 
-    # print("\nB Rotational Constants (cm-1)")
-    # print(B[0], B[1], B[2], sep='    ')
+    print("\nB Rotational Constants (cm-1)")
+    print(B[0], B[1], B[2], sep='    ')
 
-    #print("\nCoriolis Constants (cm-1):")
-    #for [i,j,k] in itertools.product(range(3), v_ind, v_ind):
-        #if abs(zeta[i, j, k]) > 1e-5:
-            #print(i + 1, j + 1, k + 1, "    ", zeta[i, j, k])
+    print("\nCoriolis Constants (cm-1):")
+    for [i,j,k] in itertools.product(range(3), v_ind, v_ind):
+        if abs(zeta[i, j, k]) > 1e-5:
+            print(i + 1, j + 1, k + 1, "    ", zeta[i, j, k])
 
     #print("\nVPT2 analysis complete...")
     print("\nFundamentals (cm-1):")

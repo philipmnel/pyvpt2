@@ -7,8 +7,6 @@ import pyvpt2
 def test_h2co_vpt2():
 
     mol = psi4.geometry("""
-    nocom
-    noreorient
     C
     O 1 R1
     H 1 R2 2 A1
@@ -22,14 +20,13 @@ def test_h2co_vpt2():
     R3 =    1.0915309601
     """)
 
-    psi4.set_options({'d_convergence': 1e-12,
+    qc_kwargs = {'d_convergence': 1e-12,
                 'e_convergence': 1e-12,
                 'scf_type': 'direct',
                 'puream': True,
-                'points': 5})
+                'points': 5}
 
-    options = {'METHOD': 'scf/6-31g*',
-            'FD': 'HESSIAN',
+    options = {'FD': 'HESSIAN',
             'DISP_SIZE': 0.05,
             'FERMI': True,
             'GVPT2': True}
@@ -40,7 +37,18 @@ def test_h2co_vpt2():
     ref_harm_zpve = 6408.5086
     ref_zpve_corr = -77.2184
 
-    results = pyvpt2.vpt2(mol, **options)
+    inp = {
+        "molecule": mol.to_schema(dtype=2),
+        "keywords": options,
+        "input_specification": [{
+            "model": {
+                "method": "scf",
+                "basis": "6-31g*"
+            },
+            "keywords": qc_kwargs}]
+        }
+
+    results = pyvpt2.vpt2_from_schema(inp)
     omega = results.omega[-6:]
     anharmonic = results.nu[-6:] - omega
     harm_zpve  = results.harmonic_zpve

@@ -1,5 +1,6 @@
 import psi4
 import pytest
+import qcengine as qcng
 
 import pyvpt2
 
@@ -11,42 +12,51 @@ except:
 
 @pytest.mark.skipif(no_qcfractal, reason="QCFractal not installed")
 @pytest.mark.parametrize("driver", ["HESSIAN"])
-def test_h2o_snowflake_vpt2(driver):
+@pytest.mark.parametrize("program", ["psi4", "cfour", "nwchem"])
+def test_h2o_snowflake_vpt2(driver, program):
+
+    if program not in qcng.list_available_programs():
+        pytest.skip()
 
     snowflake = FractalSnowflake()
     client = snowflake.client()
+
+    qc_kwargs = {"psi4": {"e_convergence": 12,
+                          "puream": True,
+                          "scf_type": "direct"},
+                 "cfour": {"SCF_CONV": 12},
+                 "nwchem": {"scf__thresh": 1e-8,
+                            "basis__spherical": True,
+                            }}
 
     mol = psi4.geometry("""
     O
     H 1 R1
     H 1 R2 2 A
 
-    A         =  106.3819454243
-    R1        =    0.9392155213
-    R2        =    0.9392155213
+    R1    =        0.94731025924472878064
+    R2    =        0.94731025924472878064
+    A    =      105.5028950965639
     """)
 
     options = {'FD': driver,
             'DISP_SIZE': 0.05,
             'RETURN_PLAN': True,
-            'QC_PROGRAM': 'psi4'}
+            'QC_PROGRAM': program}
 
-    ref_omega = [1747.4491, 4129.8877, 4230.4755]
-    ref_anharmonic = [-53.8382, -157.1904, -171.4518]
-    ref_harm_zpve = 5053.9062
-    ref_zpve_corr = -69.5146
+    ref_omega = [1826.8154, 4060.2203, 4177.8273]
+    ref_anharmonic = [-54.0635, -158.2345, -177.9707]
+    ref_harm_zpve = 5032.431
+    ref_zpve_corr = -70.352
 
     inp = {
         "molecule": mol.to_schema(dtype=2),
         "keywords": options,
         "input_specification": [{
             "model": {
-                "method": "scf/cc-pv[dt]z",
-                "basis": "(auto)"},
-            "keywords": {
-                "e_convergence": 10,
-                "d_convergence": 10,
-            }
+                "method": "scf",
+                "basis": "6-31g*"},
+            "keywords": qc_kwargs[program]
         }]
     }
 
@@ -54,6 +64,7 @@ def test_h2o_snowflake_vpt2(driver):
     harmonic_plan.compute(client=client)
     snowflake.await_results()
     harmonic_ret = harmonic_plan.get_results(client=client)
+    print(harmonic_ret)
 
     plan = pyvpt2.vpt2_from_harmonic(harmonic_ret, qc_spec=inp["input_specification"][0], **options)
     plan.compute(client=client)

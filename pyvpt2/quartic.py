@@ -7,14 +7,12 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple
 
 import numpy as np
 import psi4
-from psi4.driver.driver_cbs import CompositeComputer, composite_procedures
-from psi4.driver.task_base import AtomicComputer, BaseComputer
-from psi4.driver.task_planner import expand_cbs_methods
 from pydantic import validator
 from qcelemental.models import AtomicResult, DriverEnum
 
 # Local imports:
 from .constants import wave_to_hartree
+from .task_base import AtomicComputer, BaseComputer
 
 if TYPE_CHECKING:
     import qcportal
@@ -109,8 +107,8 @@ def _displace_cart(geom: np.ndarray, modes: np.ndarray, i_m: Iterator[Tuple], di
 
     Returns
     -------
-    np.ndarray
-        Displaced geometry
+    Tuple[np.ndarray, str]
+        Displaced geometry; label
     """
     label = []
     disp_geom = np.copy(geom)
@@ -193,8 +191,11 @@ def _geom_generator(mol: psi4.core.Molecule, data: Dict, mode: int) -> Dict:
                 append_geoms((index1, index2, index3), val)
 
     #  reference geometry only if we're doing multi-level calc
-    if data["options"].get("METHOD2", False):
+    if data["options"].get("MULTILEVEL", False):
         findifrec["reference"]["geometry"] = ref_geom
+        findifrec["reference"]["do_reference"] = True
+
+    if data["harm"].get("G0", None) is None and data["options"]["FD"] == "GRADIENT":
         findifrec["reference"]["do_reference"] = True
 
     return findifrec
@@ -304,7 +305,7 @@ def assemble_quartic_from_gradients(findifrec: Dict) -> Tuple[np.ndarray, np.nda
     """
 
     n_modes = findifrec["harm"]["n_modes"]
-    grad0 = findifrec["reference"].get("gradient", findifrec["harm"]["G0"])
+    grad0 = findifrec["reference"].get("gradient", findifrec["harm"].get("G0"))
     q = findifrec["harm"]["modes"]
     gamma = findifrec["harm"]["gamma"]
     v_ind = findifrec["harm"]["v_ind"]
@@ -484,7 +485,7 @@ class QuarticComputer(BaseComputer):
 
         BaseComputer.__init__(self, **data)
 
-        data['keywords']['PARENT_SYMMETRY'] = self.molecule.point_group().full_name()
+        #data['keywords']['PARENT_SYMMETRY'] = self.molecule.point_group().full_name()
 
         self.method = data['method']
 
@@ -517,6 +518,7 @@ class QuarticComputer(BaseComputer):
                 "method": self.method,
                 "basis": data["basis"],
                 "keywords": data["keywords"] or {},
+                "program": data["program"],
             }
             if 'cbs_metadata' in data:
                 packet['cbs_metadata'] = data['cbs_metadata']
@@ -531,10 +533,12 @@ class QuarticComputer(BaseComputer):
 
             # Load in displacement into the active molecule
             clone.set_geometry(psi4.core.Matrix.from_array(displacement["geometry"]))
+            #clone.update({"geometry": displacement["geometry"]})
+            #clone = Molecule(**clone)
 
             # If the user insists on symmetry, weaken it if some is lost when displacing.
             # or 'fix_symmetry' in self.findifrec.molecule
-            logger.debug(f'SYMM {clone.schoenflies_symbol()}')
+            #logger.debug(f'SYMM {clone.schoenflies_symbol()}')
             if self.molecule.symmetry_from_input():
                 disp_group = clone.find_highest_point_group()
                 new_bits = parent_group.bits() & disp_group.bits()
@@ -547,6 +551,7 @@ class QuarticComputer(BaseComputer):
                 "method": self.method,
                 "basis": data["basis"],
                 "keywords": data["keywords"] or {},
+                "program": data["program"],
             }
             if 'cbs_metadata' in data:
                 packet['cbs_metadata'] = data['cbs_metadata']
@@ -589,13 +594,12 @@ class QuarticComputer(BaseComputer):
 
             elif task.driver == 'gradient':
                 reference['gradient'] = response
-                reference['energy'] = task.extras['qcvars']['CURRENT ENERGY']
+                reference['energy'] = task.properties.return_energy
 
             elif task.driver == 'hessian':
                 reference['hessian'] = response
-                reference['energy'] = task.extras['qcvars']['CURRENT ENERGY']
-                if 'CURRENT GRADIENT' in task.extras['qcvars']:
-                    reference['gradient'] = task.extras['qcvars']['CURRENT GRADIENT']
+                reference['energy'] = task.properties.return_energy
+                reference['gradient'] = task.properties.return_gradient
 
         # load AtomicComputer results into findifrec[displacements]
         for label, displacement in self.findifrec["displacements"].items():
@@ -607,13 +611,12 @@ class QuarticComputer(BaseComputer):
 
             elif task.driver == 'gradient':
                 displacement['gradient'] = response
-                displacement['energy'] = task.extras['qcvars']['CURRENT ENERGY']
+                displacement['energy'] = task.properties.return_energy
 
             elif task.driver == 'hessian':
                 displacement['hessian'] = response
-                displacement['energy'] = task.extras['qcvars']['CURRENT ENERGY']
-                if 'CURRENT GRADIENT' in task.extras['qcvars']:
-                    displacement['gradient'] = task.extras['qcvars']['CURRENT GRADIENT']
+                displacement['energy'] = task.properties.return_energy
+                displacement['gradient'] = task.properties.return_gradient
 
             displacement['provenance'] = task.provenance
 
@@ -656,46 +659,3 @@ class QuarticComputer(BaseComputer):
               })
 
         return quartic_result
-
-def task_planner(method: str, molecule: psi4.core.Molecule, **kwargs) -> QuarticComputer:
-    """
-    Generates computer for finite difference calcutations
-
-    Parameters
-    ----------
-    method : str
-        Quantum chemistry method
-    molecule: psi4.core.Molecule
-        Input molecule
-
-    Returns
-    -------
-    QuarticComputer
-        Computer for finite difference calculations
-    """
-    # keywords are the psi4 option keywords
-    keywords = psi4.p4util.prepare_options_for_set_options()
-    driver = "hessian"
-    dermode = kwargs["options"]["FD"]
-    method = method.lower()
-    basis = keywords.pop("BASIS", "(auto)")
-
-    # Expand CBS methods
-    method, basis, cbsmeta = expand_cbs_methods(method=method, basis=basis, driver=driver)
-    if method in composite_procedures:
-        kwargs.update(cbsmeta)
-        kwargs.update({'cbs_metadata': composite_procedures[method](**kwargs)})
-        method = 'cbs'
-
-    packet = {"molecule": molecule, "driver": driver, "method": method, "basis": basis, "keywords": keywords}
-
-    if method == "cbs":
-        kwargs.update(cbsmeta)
-        logger.info(
-            f'PLANNING FD(CBS):  dermode={dermode} packet={packet} kw={kwargs}')
-        return QuarticComputer(**packet, computer=CompositeComputer, **kwargs)
-
-    else:
-        logger.info(
-            f'PLANNING FD:  dermode={dermode} keywords={keywords} kw={kwargs}')
-        return QuarticComputer(**packet, **kwargs)

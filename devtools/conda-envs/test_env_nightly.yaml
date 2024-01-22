@@ -9,6 +9,7 @@ dependencies:
   - qcfractal
   - qcportal
   - qcelemental
+  - nwchem
 
     # Base depends
   - python
