@@ -109,3 +109,6 @@ ENV/
 timer.dat
 psi*
 stdout*
+
+# vscode settings
+.vscode/

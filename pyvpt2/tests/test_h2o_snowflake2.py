@@ -25,8 +25,8 @@ def test_h2o_snowflake_vpt2(driver, program):
                           "puream": True,
                           "scf_type": "direct"},
                  "cfour": {"SCF_CONV": 12},
-                 "nwchem": {"scf__thresh": 8,
-                            "basis__spherical": "",
+                 "nwchem": {"scf__thresh": 1e-8,
+                            "basis__spherical": True,
                             }}
 
     mol = psi4.geometry("""
