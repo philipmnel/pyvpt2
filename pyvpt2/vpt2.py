@@ -75,6 +75,7 @@ def process_harmonic(wfn: psi4.core.Wavefunction, **kwargs) -> Dict:
     q = frequency_analysis["q"].data
     if intensities := frequency_analysis.get("IR_intensities", None):
         intensities = intensities.data
+    symm_labels = frequency_analysis["gamma"].data
     n_modes = len(trv)
     omega_thresh = kwargs.get("VPT2_OMEGA_THRESH")
 
@@ -115,6 +116,9 @@ def process_harmonic(wfn: psi4.core.Wavefunction, **kwargs) -> Dict:
     harm["q"] = q # Normalized, mass weighted normal modes, used for coord transformations
     harm["zpve"] = zpve # Zero point vibrational correction
     harm["intensities"] = intensities # Harmonic IR intensities (km mol-1)
+    harm["symm"] = symm_labels # symmetry labels
+
+    print(harm["symm"])
 
     return harm
 
@@ -474,6 +478,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
     omega = harm["omega"]
     v_ind = harm["v_ind"]
     n_modes = harm["n_modes"]
+    symm_labels = harm["symm"]
 
     degeneracy = np.ones(n_modes)
     v_ind_nondegen = v_ind.copy() #
@@ -500,6 +505,50 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
     chi = np.zeros((n_modes, n_modes))
     g = np.zeros((n_modes, n_modes))
 
+    phi_mss = {}
+    phi_mst = {}
+    phi_sss = {}
+    phi_sst = {}
+    phi_stu = {}
+    phi_mmss = {}
+    phi_ssss = {}
+    phi_sstt = {}
+
+    for m in v_ind_nondegen:
+        for s in v_ind_degen:
+            phi_mss[(m,s,s)] = {}
+            phi_mmss[(m,s)] = {}
+            if symm_labels[m] in ["A1", "Ag", "B1u"]:
+                phi_mss[(m,s,s)].update({1: phi_ijk[m,s,s]})
+
+            if symm_labels[m] in ["A1", "A2", "Ag", "B1u"]:
+                phi_mmss[(m,s)].update({1: phi_iijj[m,s]})
+
+            for t in v_ind_degen:
+                if s == t: continue
+                phi_mst[(m,s,t)] = {}
+                if symm_labels[m] in ["A1", "Ag", "B1u"]:
+                    phi_mst[(m,s,t)].update({1: phi_ijk[m,s,degen_mode_map[t]] + phi_ijk[m,s,t]})
+
+    for s in v_ind_degen:
+        phi_sss[(s,s,s)] = {}
+        for t in v_ind_degen:
+            phi_sst[(s,s,t)] = {}
+            for u in v_ind_degen:
+                phi_stu[(s,t,u)] = {}
+
+    for s in v_ind_degen:
+        phi_ssss[(s,s)] = {1: phi_iijj[s,s]}
+        for t in v_ind_degen:
+            if s == t: continue
+            phi_sstt[(s,t)] = {2: phi_iijj[s,t],
+                               3: phi_iijj[s,degen_mode_map[t]]}
+
+
+    delta_sig = {1: 1, 2: 3/4, 3: 3/4, 4: 3/4}
+    delta_sig_p = {1: 1, 2: 1/2, 3: 1/2, 4: 1/4}
+    delta_sig_pp = {1: 1, 2: 1, 3: -1, 4: -1}
+
     # loop to solve non-degenerate anharmonicities
     for i in v_ind_nondegen:
 
@@ -522,50 +571,52 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
 
             else:
                 #chi_mn
-                chi0 += 3 * omega[i]* phi_ijk[i, j, j] ** 2 / (4 * omega[j] ** 2 - omega[i] ** 2)
                 chi[i, j] = phi_iijj[i, j]
-                rot = 0
-                for b_ind in range(0, 3):
-                    rot += B[b_ind] * (zeta[b_ind, i, j]) ** 2
 
-                chi[i, j] += (4 * (omega[i] ** 2 + omega[j] ** 2) / (omega[i] * omega[j]) * rot)
+                factor = 4 * (omega[i] ** 2 + omega[j] ** 2) / (omega[i] * omega[j])
+                for b_ind in range(0, 3):
+                    chi[i, j] += factor * B[b_ind] * (zeta[b_ind, i, j]) ** 2
 
                 for k in v_ind_nondegen:
                     chi[i, j] -= (phi_ijk[i, i, k] * phi_ijk[j, j, k]) / omega[k]
 
-                    delta_ij, delta_0 = compute_delta_ij(i, j, k, omega, fermi_list)
+                    delta_ij= compute_delta_ij(i, j, k, omega, fermi_list)
                     chi[i,j] += phi_ijk[i,j,k]**2 * delta_ij
 
                 chi[i, j] /= 4
 
         for j in v_ind_degen:
             #chi_ms
-            chi[i,j] = phi_iijj[i,j]
+            for phi_mmss_val in phi_mmss[(i,j)].values():
+                chi[i,j] += phi_mmss_val
 
-            if (i,(j,j)) in fermi_list:
-                temp = 2 * omega[j] * phi_ijk[i,j,j]**2
-                temp *= 1 / (2*omega[j] + omega[i])
-                temp /= 4 * omega[j]
-                chi[i,j] -= temp
+            for phi_mss_val in phi_mss[(i,j,j)].values():
+                if (i,(j,j)) in fermi_list:
+                    temp = 2 * omega[j] * phi_mss_val**2
+                    temp *= 1 / (2*omega[j] + omega[i])
+                    temp /= 4 * omega[j]
+                    chi[i,j] -= temp
 
-            else:
-                temp = 2 * omega[j] * phi_ijk[i,j,j]**2
-                temp /= (4*omega[j]**2 - omega[i]**2)
-                chi[i,j] -= temp
+                else:
+                    temp = 2 * omega[j] * phi_mss_val**2
+                    temp /= (4*omega[j]**2 - omega[i]**2)
+                    chi[i,j] -= temp
 
             for k in v_ind_nondegen:
-                chi[i,j] -= phi_ijk[i,i,k] * phi_ijk[j,j,k] / omega[k]
+                if phi_mss[(k,j,j)].get(1, None):
+                    chi[i,j] -= phi_ijk[i,i,k] * phi_mss[(k,j,j)][1] / omega[k]
 
             for k in v_ind_degen:
                 if j == k: continue
+                for phi_mst_val in phi_mst[(i,j,k)].values():
+                    delta_ij = compute_delta_ij(i, j, k, omega, fermi_list)
+                    chi[i,j] += phi_mst_val**2 * delta_ij
 
-                delta_ij, delta_0 = compute_delta_ij(i, j, k, omega, fermi_list)
-                chi[i,j] += phi_ijk[i,j,k]**2 * delta_ij
+            factor = 4 * (omega[i] ** 2 + omega[j] ** 2) / (omega[i] * omega[j])
+            chi[i, j] += factor * B[0] * (zeta[0, i, j] ** 2 + zeta[0, i, degen_mode_map[j]]**2)
+            rot_contrib = factor * B[0] * (zeta[0, i, j] ** 2 + zeta[0, i, degen_mode_map[j]]**2)
+            print(i, j, rot_contrib/4)
 
-            rot = 0
-            for b_ind in range(0, 3):
-                rot += B[b_ind] * (zeta[b_ind, i, j]) ** 2
-            chi[i, j] += 4 * rot * (omega[i] ** 2 + omega[j] ** 2) / (omega[i] * omega[j])
             chi[i, j] /= 4
             chi[j, i] = chi[i, j]
 
@@ -573,80 +624,139 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
         for j in v_ind_degen:
             if i == j:
                 # chi_ss
-                chi[i, i] = phi_iijj[i, i]
-                g[i, i] = -1/3 * phi_iijj[i, i]
-                g[i, i] += 7/3 * phi_ijk[i, i, i]**2 / omega[i]
+
+                for order, phi_ssss_val in phi_ssss[(i,i)].items():
+                    chi[i, i] = delta_sig[order] * phi_ssss_val
+
+                for phi_sss_val in phi_sss[(i,i,i)].values():
+                    chi[i, i] -= 5/3 * phi_sss_val**2 / omega[i]
 
                 for k in v_ind_nondegen:
+                    for order, phi_mss_val in phi_mss[(k,i,i)].items():
+                        if (k,(i,i)) in fermi_list:
+                            temp = (phi_mss_val ** 2 ) / 2
+                            temp *= (1 / (2 * omega[i] + omega[k]) + 4 / omega[k])
+                            chi[i,i] -= delta_sig_p[order] * temp
+                        else:
+                            temp = ((8 * omega[i] ** 2 - 3 * omega[k] ** 2) * phi_mss_val ** 2)
+                            temp /= (omega[k] * (4 * omega[i] ** 2 - omega[k] ** 2))
+                            chi[i, i] -= delta_sig_p[order] * temp
+
+                for k in v_ind_degen:
+                    if i == k: continue
+                    for phi_sst_val in phi_sst[(i,i,k)].values():
+                        if (k,(i,i)) in fermi_list:
+                            temp = (phi_sst_val ** 2 ) / 2
+                            temp *= (1 / (2 * omega[i] + omega[k]) + 4 / omega[k])
+                            chi[i,i] -= temp
+                        else:
+                            temp = ((8 * omega[i] ** 2 - 3 * omega[k] ** 2) * phi_sst_val ** 2)
+                            temp /= (omega[k] * (4 * omega[i] ** 2 - omega[k] ** 2))
+                            chi[i, i] -=  temp
+
+                chi[i,i] /= 16
+
+                # g_ss
+                for order, phi_ssss_val in phi_ssss[(i,i)].items():
+                    g[i, i] = -1/3 * delta_sig[order] * phi_ssss_val
+
+                for phi_sss_val in phi_sss[(i,i,i)].values():
+                    g[i, i] += 7/3 * phi_sss_val**2 / omega[i]
+
+                for k in v_ind_nondegen:
+
+                    phi_I = phi_mss[(k,i,i)].get(1, 0.0)
+                    phi_III = phi_mss[(k,i,i)].get(3, 0.0)
+                    phi_IV = phi_mss[(k,i,i)].get(4, 0.0)
+
                     if (k,(i,i)) in fermi_list:
-                        temp = omega[k] * phi_ijk[k, i, i]**2
+                        temp = omega[k] * phi_I**2
                         temp *= 1 / (2*omega[i] + omega[k])
                         temp /= 4 * omega[i]
                         g[i, i] -= temp
 
                     else:
-                        temp = omega[k] * phi_ijk[k, i, i]**2
+                        temp = omega[k] * phi_I**2
                         temp /= (4*omega[i]**2 - omega[k]**2)
                         g[i, i] -= temp
 
-
-                for k in v_ind_all:
-                    if (k,(i,i)) in fermi_list:
-                        temp = (phi_ijk[i, i, k] ** 2 ) / 2
-                        temp *= (1 / (2 * omega[i] + omega[k]) + 4 / omega[k])
-                        chi[i,i] -= temp
-                    else:
-                        temp = ((8 * omega[i] ** 2 - 3 * omega[k] ** 2) * phi_ijk[i, i, k] ** 2)
-                        temp /= (omega[k] * (4 * omega[i] ** 2 - omega[k] ** 2))
-                        chi[i, i] -=  temp
+                    temp = phi_III**2 + phi_IV**2
+                    temp *=  8*omega[i]**2 - omega[k]**2
+                    temp /= 2 * omega[k] * (4*omega[i]**2 - omega[k]**2)
+                    g[i,i] += temp
 
                 for k in v_ind_degen:
-                    if (k,(i,i)) in fermi_list:
-                        temp = (phi_ijk[i, i, k] ** 2 ) / 2
-                        temp *= (-1 / (2 * omega[i] + omega[k]) + 4 / omega[k])
-                        g[i,i] -= temp
-                    else:
-                        temp = ((8 * omega[i] ** 2 - omega[k] ** 2) * phi_ijk[i, i, k] ** 2)
-                        temp /= (omega[k] * (4 * omega[i] ** 2 - omega[k] ** 2))
-                        g[i, i] -=  temp
+                    if i == k: continue
+                    for phi_sst_val in phi_sst[(i,i,k)].values():
+                        if (k,(i,i)) in fermi_list:
+                            temp = (phi_sst_val ** 2 ) / 2
+                            temp *= (-1 / (2 * omega[i] + omega[k]) + 4 / omega[k])
+                            g[i,i] += temp
+                        else:
+                            temp = ((8 * omega[i] ** 2 - omega[k] ** 2) * phi_sst_val ** 2)
+                            temp /= (omega[k] * (4 * omega[i] ** 2 - omega[k] ** 2))
+                            g[i, i] +=  temp
 
-                #TODO: rot contribution to g_ii
+                g[i,i] += 16 * B[2] * zeta[2, i, degen_mode_map[i]]**2
 
-                chi[i,i] /= 16
                 g[i, i] /= 16
 
             else:
                 #chi_st
-                chi[i,j] = phi_iijj[i,j]
+                for order, phi_sstt_val in phi_sstt[(i,j)].items():
+                    chi[i,j] += delta_sig_p[order] * phi_sstt_val
+
+                for phi_sst_val in phi_sst[(i,i,j)].values():
+                    chi[i,j] -= 2 * omega[i] * phi_sst_val**2 / (4 * omega[i]**2 - omega[j]**2)
+                for phi_stt_val in phi_sst[(j,j,i)].values():
+                    chi[i,j] -= 2 * omega[j] * phi_stt_val**2 / (4 * omega[j]**2 - omega[i]**2)
 
                 for k in v_ind_nondegen:
-                    delta_ij, delta_0 = compute_delta_ij(i, j, k, omega, fermi_list)
-                    chi[i,j] += 1/2 * phi_ijk[i,j,k]**2 * delta_ij
-                    chi[i,j] -= phi_ijk[k,i,i] * phi_ijk[k,j,j] / omega[k]
+                    for phi_mst_val in phi_mst[(k,i,j)].values():
+                        delta_ij = compute_delta_ij(i, j, k, omega, fermi_list)
+                        chi[i,j] += 1/2 * phi_mst_val**2 * delta_ij
+
+                    phi_mss_val = phi_mss[(k,i,i)].get(1, 0)
+                    phi_mtt_val = phi_mss[(k,j,j)].get(1, 0)
+                    chi[i,j] -= phi_mss_val * phi_mtt_val / omega[k]
 
                 for k in v_ind_degen:
-                    delta_ij, delta_0 = compute_delta_ij(i, j, k, omega, fermi_list)
-                    chi[i,j] += phi_ijk[i,j,k]**2 * delta_ij
+                    if i == k or j == k: continue
+                    for phi_stu_val in phi_stu[i,j,k].values():
+                        delta_ij = compute_delta_ij(i, j, k, omega, fermi_list)
+                        chi[i,j] += phi_stu_val**2 * delta_ij
 
-                #TODO: rotational contribution to chi_ij
+                factor = 4 * (omega[i] ** 2 + omega[j] ** 2) / (omega[i] * omega[j])
+                rot = 1/2 * B[2] * (zeta[2,i,j]**2 + zeta[2,i,degen_mode_map[j]]**2)
+                rot += B[0] * (zeta[0,i,j]**2 + zeta[1,i,j]**2)
+                chi[i,j] += factor * rot
 
+                chi[i,j] /= 4
 
-                g[i,j] = 0.0
-
-                for k in v_ind_nondegen:
+                def compute_delta_ij2(i,j,k,omega):
                     delta = omega[i] + omega[j] - omega[k]
                     delta *= omega[i] + omega[j] + omega[k]
                     delta *= omega[i] - omega[j] + omega[k]
                     delta *= omega[i] - omega[j] - omega[k]
-                    delta *= 2
-                    g[i,j] += phi_ijk[i,j,k]**2 * omega[i] * omega[k] * omega[j] / delta
+                    return delta
+
+
+                for k in v_ind_nondegen:
+                    for order, phi_mst_val in phi_mst[(k,i,j)].items():
+                        delta = compute_delta_ij2(i,j,k,omega)
+                        g[i,j] += delta_sig_pp[order] * phi_mst_val**2 * omega[i] * omega[j] * omega[k] / (2 * delta)
 
                 for k in v_ind_degen:
-                    delta = omega[i] + omega[j] - omega[k]
-                    delta *= omega[i] + omega[j] + omega[k]
-                    delta *= omega[i] - omega[j] + omega[k]
-                    delta *= omega[i] - omega[j] - omega[k]
-                    g[i,j] += phi_ijk[i,j,k]**2 * omega[i] * omega[k] * omega[j] / delta
+                    for phi_stu_val in phi_stu[(i,k,j)].values():
+                        delta = compute_delta_ij2(i,j,k,omega)
+                        g[i,j] += phi_mst_val**2 * omega[i] * omega[j] * omega[k] / delta
+
+                for order, phi_sst_val in phi_sst[(i,i,j)].items():
+                    g[i,j] += delta_sig_pp[order] * phi_sst_val * omega[i]**2 / (omega[j] * (4*omega[i]**2 - omega[j]**2))
+
+                for order, phi_stt_val in phi_sst[(j,j,i)].items():
+                    g[i,j] += delta_sig_pp[order] * phi_stt_val * omega[j]**2 / (omega[i] * (4*omega[j]**2 - omega[i]**2))
+
 
                 #TODO: rotational contributions to g_ij
 
@@ -660,15 +770,17 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
             zpve += 1/32 * phi_iijj[i,j]
 
     for i in v_ind_degen:
-        zpve += 1/12 * phi_iijj[i,i]
+        for order, phi_ssss_val in phi_ssss[(i,i)].items():
+            if order <= 3:
+                zpve += 1/12 * delta_sig[order] * phi_ssss_val
 
         for j in v_ind_nondegen:
             zpve += 1/8 * phi_iijj[i,j]
 
         for j in v_ind_degen:
             if i == j: continue
-            zpve += 1/16 * phi_iijj[i,j] #II
-            zpve += 1/16 * phi_iijj[i,degen_mode_map[j]] #III
+            for order, phi_sstt_val in phi_sstt[(i,j)].items():
+                zpve += 1/16 * delta_sig_p[order] * phi_sstt_val
 
     for i in v_ind_nondegen:
         for j in v_ind_nondegen:
@@ -677,34 +789,46 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
                 zpve -= phi_ijk[i,j,k]**2 / (48 * (omega[i] + omega[j] + omega[k]))
 
     for i in v_ind_degen:
-        continue
-        #zpve -= 1/36 * phi_ijk[i,i,i]**2 / (omega[i])
+        for phi_sss_val in phi_sss[(i,i,i)].values():
+            zpve -= 1/36 * phi_sss_val**2 / (omega[i])
+
 
     for i in v_ind_nondegen:
         for j in v_ind_degen:
-            zpve -= phi_ijk[i,j,j]**2 * (omega[i] + omega[j]) / (4 * omega[i] * (2 * omega[j] + omega[i]))
+            phi_mss_i = phi_mss[(i,j,j)].get(1, 0.0)
+            zpve -= phi_mss_i**2 * (omega[i] + omega[j]) / (4 * omega[i] * (2 * omega[j] + omega[i]))
+            phi_mss_iii = phi_mss[(i,j,j)].get(3, 0.0)
+            phi_mss_iv = phi_mss[(i,j,j)].get(4, 0.0)
+            zpve -= (phi_mss_iii**2 + phi_mss_iv**2) /  (16 * omega[j] + 8 * omega[i])
 
             for k in v_ind_nondegen:
-                zpve -= 1/8 * phi_ijk[i,i,k] * phi_ijk[k,j,j] / (omega[k])
+                phi_nss_val = phi_mss[(k,j,j)].get(1, 0.0)
+                zpve -= 1/8 * phi_ijk[i,i,k] * phi_nss_val / (omega[k])
 
             for k in v_ind_degen:
                 if k <= j: continue
-                zpve -= 1/4 * phi_ijk[i,j,j] * phi_ijk[i,k,k] / (omega[i])
-                zpve -= 1/4 * phi_ijk[i,j,k]**2 / (omega[i] + omega[j] + omega[k])
+
+                phi_mss_val = phi_mss[(i,j,j)].get(1, 0.0)
+                phi_mtt_val = phi_mss[(i,k,k)].get(1, 0.0)
+
+                zpve -= 1/4 * phi_mss_val * phi_mtt_val / (omega[i])
+
+                for phi_mst_val in phi_mst[(i,j,k)].values():
+                    zpve -= 1/4 * phi_mst_val**2 / (omega[i] + omega[j] + omega[k])
 
     for i in v_ind_degen:
         for j in v_ind_degen:
             if i == j: continue
-            #zpve -= phi_ijk[i,i,j] **2 / (4 * (2 * omega[i] + omega[j]))
-            continue
+            for phi_sst_val in phi_sst[(i,i,j)].values():
+                zpve -= phi_sst_val ** 2 / (4 * (2 * omega[i] + omega[j]))
 
     for i in v_ind_degen:
         for j in v_ind_degen:
             for k in v_ind_degen:
                 if j <= i: continue
                 if k <= j: continue
-                #zpve -= phi_ijk[i,j,k]**2 / (omega[i] + omega[j] + omega[k])
-                continue
+                for phi_stu_val in phi_stu[(i,k,j)].values():
+                    zpve -= phi_stu_val**2 / (2*(omega[i] + omega[j] + omega[k]))
 
     for b_ind in range(3):
         if rotor_type == "RT_LINEAR": continue
@@ -725,7 +849,6 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
 
     for i in v_ind_degen:
         for j in v_ind_degen:
-            continue
             if j <= i: continue
             temp = (zeta[2, i, j]**2 + zeta[2, i, degen_mode_map[j]]**2)
             temp *= ((omega[i]**2 + omega[j]**2) / (omega[i] * omega[j]) - 2)
@@ -740,6 +863,12 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
     rows = [[i+1, j+1, chi[i, j]] for [i,j] in itertools.combinations_with_replacement(v_ind,2)]
     for row in rows:
         print("{: >2} {: >2} {: >10.4f}".format(*row))
+
+    if v_ind_degen is not []:
+        print("\ng (cm-1)")
+        rows = [[i+1, j+1, g[i, j]] for [i,j] in itertools.combinations_with_replacement(v_ind_degen,2)]
+        for row in rows:
+            print("{: >2} {: >2} {: >10.4f}".format(*row))
 
     anharmonic = np.zeros(n_modes)
     overtone = np.zeros(n_modes)
@@ -948,11 +1077,6 @@ def compute_delta_ij(i, j, k, omega, fermi_list):
         delta_ij += 1 / (omega[i] - omega[j] + omega[k])
         delta_ij /= -2
 
-        delta_0 = 1 / (omega[i] + omega[j] + omega[k])
-        #delta_0 -= 1 / (omega[i] + omega[j] - omega[k]) deperturbed
-        delta_0 -= 1 / (omega[i] - omega[j] + omega[k])
-        delta_0 -= 1 / (-omega[i] + omega[j] + omega[k])
-
     elif (i,(j,k)) in fermi_list:
         # j + k = i
         delta_ij = 1 / (omega[i] + omega[j] + omega[k])
@@ -960,11 +1084,6 @@ def compute_delta_ij(i, j, k, omega, fermi_list):
         #delta_ij += 1 / (-omega[i] + omega[j] + omega[k]) deperturbed
         delta_ij += 1 / (omega[i] - omega[j] + omega[k])
         delta_ij /= -2
-
-        delta_0 = 1 / (omega[i] + omega[j] + omega[k])
-        delta_0 -= 1 / (omega[i] + omega[j] - omega[k])
-        delta_0 -= 1 / (omega[i] - omega[j] + omega[k])
-        #delta_0 -= 1 / (-omega[i] + omega[j] + omega[k]) deperturbed
 
     elif (j,(i,k)) in fermi_list:
         # k + i = j
@@ -974,17 +1093,11 @@ def compute_delta_ij(i, j, k, omega, fermi_list):
         #delta_ij += 1 / (omega[i] - omega[j] + omega[k]) deperturbed
         delta_ij /= -2
 
-        delta_0 = 1 / (omega[i] + omega[j] + omega[k])
-        delta_0 -= 1 / (omega[i] + omega[j] - omega[k])
-        #delta_0 -= 1 / (omega[i] - omega[j] + omega[k]) deperturbed
-        delta_0 -= 1 / (-omega[i] + omega[j] + omega[k])
-
     else:
         delta = omega[i] + omega[j] - omega[k]
         delta *= omega[i] + omega[j] + omega[k]
         delta *= omega[i] - omega[j] + omega[k]
         delta *= omega[i] - omega[j] - omega[k]
         delta_ij = 2 * omega[k] * (omega[i] ** 2 + omega[j] ** 2 - omega[k] ** 2) / delta
-        delta_0 = -8 * (omega[i] * omega[j] * omega[k]) / delta
 
-    return delta_ij, delta_0
+    return delta_ij
