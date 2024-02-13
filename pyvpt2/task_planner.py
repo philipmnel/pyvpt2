@@ -63,7 +63,7 @@ def hessian_planner(molecule: Molecule, qc_spec: QCInputSpecification, **kwargs)
         findif_kwargs.update(cbsmeta)
 
         if driver == "hessian":
-            logger.info('PLANNING CBS:  packet={packet} kw={findif_kwargs}')
+            logger.info(f'PLANNING CBS:  packet={packet} kw={findif_kwargs}')
             return CompositeComputer(**packet, **findif_kwargs)
 
         else:
@@ -76,7 +76,7 @@ def hessian_planner(molecule: Molecule, qc_spec: QCInputSpecification, **kwargs)
 
     else:
         if driver == "hessian":
-            logger.info('PLANNING ATOMIC:  packet={packet} kw={findif_kwargs}')
+            logger.info(f'PLANNING ATOMIC:  packet={packet} kw={findif_kwargs}')
             return AtomicComputer(**packet, **findif_kwargs)
 
         else:
