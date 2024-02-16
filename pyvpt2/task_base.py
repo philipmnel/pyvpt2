@@ -87,6 +87,7 @@ class AtomicComputer(BaseComputer):
     result: Any = Field(default_factory=dict, description=":py:class:`~qcelemental.models.AtomicResult` return.")
     result_id: Optional[str] = Field(None, description="The optional ID for the computation.")
     program: str = Field("psi4", description="The quantum chemistry program to run.")
+    task_config: Dict[str, Any] = Field(default_factory=dict, description="Task config for jobs.")
 
     class Config(qcel.models.ProtoModel.Config):
         pass
@@ -221,14 +222,8 @@ class AtomicComputer(BaseComputer):
             self.plan(),
             self.program,
             raise_error=True,
-            # local_options below suitable for serial mode where each job takes all the resources of the parent Psi4 job.
-            #   distributed runs through QCFractal will likely need a different setup.
-            task_config={
-                # B -> GiB
-                "memory": core.get_memory() / (2 ** 30),
-                "ncores": core.get_num_threads(),
-            },
-        )
+            task_config=self.task_config,
+            )
         # ... END
 
         #pp.pprint(self.result.dict())
