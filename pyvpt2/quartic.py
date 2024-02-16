@@ -519,6 +519,7 @@ class QuarticComputer(BaseComputer):
                 "basis": data["basis"],
                 "keywords": data["keywords"] or {},
                 "program": data["program"],
+                "task_config": data["options"]["TASK_CONFIG"],
             }
             if 'cbs_metadata' in data:
                 packet['cbs_metadata'] = data['cbs_metadata']
@@ -552,6 +553,7 @@ class QuarticComputer(BaseComputer):
                 "basis": data["basis"],
                 "keywords": data["keywords"] or {},
                 "program": data["program"],
+                "task_config": data["options"]["TASK_CONFIG"],
             }
             if 'cbs_metadata' in data:
                 packet['cbs_metadata'] = data['cbs_metadata']
