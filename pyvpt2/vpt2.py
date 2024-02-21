@@ -28,8 +28,7 @@ def _findif_schema_to_wfn(findif_model: AtomicResult) -> psi4.core.Wavefunction:
 
     # new skeleton wavefunction w/mol, highest-SCF basis (just to choose one), & not energy
     mol = psi4.core.Molecule.from_schema(findif_model.molecule.dict(), nonphysical=True)
-    sbasis = "def2-svp" if (findif_model.model.basis == "(auto)") else findif_model.model.basis
-    basis = psi4.core.BasisSet.build(mol, "ORBITAL", sbasis, quiet=True)
+    basis = psi4.core.BasisSet.build(mol, "ORBITAL", "def2-svp", quiet=True)
     wfn = psi4.core.Wavefunction(mol, basis)
     if hasattr(findif_model.provenance, "module"):
         wfn.set_module(findif_model.provenance.module)
