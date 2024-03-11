@@ -73,7 +73,7 @@ def process_harmonic(wfn: psi4.core.Wavefunction, **kwargs) -> Dict:
     kforce = frequency_analysis["k"].data
     trv = frequency_analysis["TRV"].data
     q = frequency_analysis["q"].data
-    if intensities := frequency_analysis.get("IR_intensities", None):
+    if intensities := frequency_analysis.get("IR_intensity", None):
         intensities = intensities.data
     n_modes = len(trv)
     omega_thresh = kwargs.get("VPT2_OMEGA_THRESH")
