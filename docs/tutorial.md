@@ -2,26 +2,36 @@ pyvpt2 is a python module for calculating anharmonic vibrational frequencies usi
 
 Example input:
 ```python
-import psi4
+import qcelemental as qcel
 import pyvpt2
 
-mol = psi4.geometry("""
-O
-H 1 R
-H 1 R 2 A
-   
-R = 0.9473
-A =  105.5
-""")
+mol = qcel.models.Molecule.from_data("""
+O   0.0   0.0         -0.12126642
+H   0.0  -1.42495308   0.96229308
+H   0.0   1.42495308   0.96229308
+""") 
 
-# set psi4 module options here
-psi4.set_options({'e_convergence': 10,
-                  'd_convergence': 10})
+# set method here
+qc_model = {"method": "scf",
+         "basis": "6-31g*"}
 
-options = {'METHOD': 'scf/6-31g*',
-            'FD': 'HESSIAN}
+# set qc level options here
+qc_kwargs = {'d_convergence': 1e-10,
+            'e_convergence': 1e-10,
+            }
 
-ret = pyvpt2.vpt2(mol, **options)
+# set vpt2 level options here
+options = {'FD': 'HESSIAN',
+            'DISP_SIZE': 0.05,
+            'QC_PROGRAM': 'psi4',
+            }
+
+inp = {"molecule": mol,
+        "input_specification": [{"model": qc_model,
+                                "keywords": qc_kwargs}],
+        "keywords": options}
+
+results = pyvpt2.vpt2_from_schema(inp)
 ```
 
 ### Options list:
