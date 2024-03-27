@@ -1,0 +1,41 @@
+site_name: pyVPT2 Docs
+
+repo_name: philipmnel/pyvpt2
+repo_url: https://github.com/philipmnel/pyvpt2
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+
+  palette:
+  - media: "(prefers-color-scheme: light)"
+    scheme: default
+    primary: dark blue
+    toggle:
+      icon: material/lightbulb-outline
+      name: "Switch to dark mode"
+  - media: "(prefers-color-scheme: dark)"
+    scheme: slate
+    primary: dark blue
+    toggle:
+      icon: material/lightbulb
+      name: "Switch to light mode"
+
+plugins:
+- search
+- mkdocstrings:
+    default_handler: python
+    handlers:
+      python:
+        paths: [.]
+        options:
+          docstring_style: numpy
+          allow_inspection: true
+        import:
+        - https://docs.python.org/3.12/objects.inv
+
+nav:
+  - pyVPT2 Docs: index.md
+  - tutorial.md

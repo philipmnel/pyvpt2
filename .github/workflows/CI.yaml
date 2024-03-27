@@ -59,3 +59,74 @@ jobs:
         file: ./coverage.xml
         flags: unittests
         name: codecov-py${{ matrix.python-version }}
+
+  release_docs:
+    needs: [test]
+    defaults:
+      run:
+        shell: bash -l {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        cfg:
+          - label: MkDocs
+            python-version: "3.10"
+            runs-on: ubuntu-latest
+
+    name: "🐍 ${{ matrix.cfg.python-version }} • ${{ matrix.cfg.label }}"
+    runs-on: ${{ matrix.cfg.runs-on }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Write a Conda Env File
+      run: |
+          cat > export.yaml <<EOF
+          name: test
+          channels:
+            - conda-forge
+            - nodefaults
+          dependencies:
+            # Build
+            - setuptools
+            - setuptools-scm
+            # Core
+            - python
+            - qcengine
+            - psi4
+            - pydantic < 2.0
+            # Docs
+            - mkdocs
+            - mkdocs-material
+            - mkdocstrings-python
+          EOF
+          cat export.yaml
+
+    - name: Create Environment
+      uses: conda-incubator/setup-miniconda@v3
+      with:
+        activate-environment: test
+        environment-file: export.yaml
+        python-version: ${{ matrix.cfg.python-version }}
+        auto-activate-base: false
+        show-channel-urls: true
+        add-pip-as-python-dependency: true
+        channels: conda-forge,nodefaults
+
+    - name: Environment Information
+      run: |
+        conda info
+        conda list --show-channel-urls
+
+    - name: Build Documentation
+      run: |
+        python -m pip install . --no-deps
+        mkdocs build
+        cd docs
+
+    - name: GitHub Pages Deploy
+      uses: JamesIves/github-pages-deploy-action@4.1.1
+      if: github.event_name == 'push' && github.repository == 'philipmnel/pyvpt2' && ( startsWith( github.ref, 'refs/tags/' ) || github.ref == 'refs/heads/main' )
+      with:
+        branch: gh-pages
+        folder: site
