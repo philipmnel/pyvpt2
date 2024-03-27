@@ -16,14 +16,14 @@ qc_model = {"method": "scf",
          "basis": "6-31g*"}
 
 # set qc level options here
-qc_kwargs = {'d_convergence': 1e-10,
-            'e_convergence': 1e-10,
+qc_kwargs = {"d_convergence": 1e-10,
+            "e_convergence": 1e-10,
             }
 
 # set vpt2 level options here
-options = {'FD': 'HESSIAN',
-            'DISP_SIZE': 0.05,
-            'QC_PROGRAM': 'psi4',
+options = {"FD": 'HESSIAN',
+            "DISP_SIZE": 0.05,
+            "QC_PROGRAM": "psi4",
             }
 
 inp = {"molecule": mol,
