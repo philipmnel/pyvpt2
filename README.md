@@ -7,9 +7,9 @@ pyVPT2
 [![Docs](https://img.shields.io/badge/Documentation-red)](https://philipmnel.github.io/pyvpt2/)
 
 ### About
-pyVPT2 is a package to calculate VPT2 vibrational frequencies using psi4. Cubic/quartic constants can be optionally computed in a distributed parallel fashion using QCFractal.
+pyVPT2 is a package to calculate VPT2 vibrational frequencies using psi4 or qcengine. Cubic/quartic constants can be optionally computed in a distributed parallel fashion using QCFractal.
 
-For usage check the [wiki page](https://github.com/philipmnel/pyvpt2/wiki/pyVPT2-Manual).
+For usage check the [documentation](https://philipmnel.github.io/pyvpt2/).
 
 Disclaimer: This codebase is still under active development.
 
