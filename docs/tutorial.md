@@ -34,13 +34,22 @@ inp = {"molecule": mol,
 results = pyvpt2.vpt2_from_schema(inp)
 ```
 
+pyVPT2 accepts QCSchema specification of the input molecule (`"molecule"`) and quantum chemistry model specification (`"input_specification"`).
+pyVPT2 specific options are specified with the `"keywords"` section.
+Molecular geometries should be tightly converged before frequency analysis. Choices for QCEngine intregrated geometry optimizers include optking and geometric.
+Choices for QCEngine supported quantum chemistry programs can be found here.
+It is very important to note that finite-difference calculations require tightly converged energies for numerical stability. It is highly advised to specify tight convergence criteria in the QC program keywords.
+
+
 ### Options list:
 * `DISP_SIZE` (Default: 0.05) Displacement size used in finite-difference calculations.
-* `METHOD` (Default: "SCF") Method formatted as string for psi4. In multilevel calculation, used for harmonic portion only.
-* `METHOD_2` (Default: None) Method for cubic/quartic force constants. Used only for multilevel calculations.
 * `FD` (Default: "HESSIAN") Level of finite-difference calculation. Choose highest analytical derivative available for chosen method. Options: "ENERGY", "GRADIENT", or "HESSIAN"   
 * `FERMI` (Default: True) Deperturb Fermi resonances?
 * `GVPT2` (Default: False) Diagonalize Fermi resonances? Requires `FERMI` to be enabled.
 * `FERMI_OMEGA_THRESH` (Default: 200) Frequency difference threshold below which to deperturb resonances.
 * `FERMI_K_THRESH` (Default: 1) Coupling threshold above which to depertub resonances.
 * `RETURN_PLAN` (Default: False) Return a plan of tasks to be sent to a QCPortal client?
+* `VPT2_OMEGA_THRESH` (Default: 1) Frequency below which to omit from VPT2 treatment`
+* `QC_PROGRAM` (Default: "psi4") QC program to run 
+* `MULTILEVEL` (Default: False) Use different levels of theory for harmonic and anharmonic portions
+* `TASK_CONFIG` qcengine task configuration settings
