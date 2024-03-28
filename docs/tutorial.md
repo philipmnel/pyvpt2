@@ -36,8 +36,9 @@ results = pyvpt2.vpt2_from_schema(inp)
 
 pyVPT2 accepts QCSchema specification of the input molecule (`"molecule"`) and quantum chemistry model specification (`"input_specification"`).
 pyVPT2 specific options are specified with the `"keywords"` section.
-Molecular geometries should be tightly converged before frequency analysis. Choices for QCEngine intregrated geometry optimizers include optking and geometric.
-Choices for QCEngine supported quantum chemistry programs can be found here.
+Details on specifying molecular geometries can be found in the [QCElemental documentation](https://molssi.github.io/QCElemental/model_molecule.html).
+Molecular geometries should be tightly converged before frequency analysis. Choices for QCEngine intregrated geometry optimizers include [optking](https://github.com/psi-rking/optking) and [geomeTRIC](https://github.com/leeping/geomeTRIC).
+Choices for QCEngine supported quantum chemistry programs can be found [here](https://molssi.github.io/QCEngine/program_overview.html).
 It is very important to note that finite-difference calculations require tightly converged energies for numerical stability. It is highly advised to specify tight convergence criteria in the QC program keywords.
 
 
