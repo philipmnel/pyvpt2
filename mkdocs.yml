@@ -36,6 +36,16 @@ plugins:
         import:
         - https://docs.python.org/3.12/objects.inv
 
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  
 nav:
   - pyVPT2 Docs: index.md
   - tutorial.md
+  - api.md
