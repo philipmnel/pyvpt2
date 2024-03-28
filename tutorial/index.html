@@ -12,6 +12,8 @@
         <link rel="prev" href="..">
       
       
+        <link rel="next" href="../api/">
+      
       
       <link rel="icon" href="../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.15">
@@ -244,6 +246,23 @@
   
 
       
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../api/" class="md-tabs__link">
+        
+  
+    
+  
+  Api
+
+      </a>
+    </li>
+  
+
+      
     </ul>
   </div>
 </nav>
@@ -374,6 +393,26 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Api
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -428,39 +467,57 @@
   <h1>Tutorial</h1>
 
 <p>pyvpt2 is a python module for calculating anharmonic vibrational frequencies using second-order vibrational perturbation theory (VPT2). Harmonic frequencies and cubic/quartic force constants are calculated using psi4 as a quantum chemistry backend.</p>
-<p>Example input:</p>
-<pre><code class="language-python">import psi4
-import pyvpt2
-
-mol = psi4.geometry(&quot;&quot;&quot;
-O
-H 1 R
-H 1 R 2 A
-
-R = 0.9473
-A =  105.5
-&quot;&quot;&quot;)
-
-# set psi4 module options here
-psi4.set_options({'e_convergence': 10,
-                  'd_convergence': 10})
-
-options = {'METHOD': 'scf/6-31g*',
-            'FD': 'HESSIAN}
-
-ret = pyvpt2.vpt2(mol, **options)
-</code></pre>
+<p>Example input:
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span> <span class="nn">qcelemental</span> <span class="k">as</span> <span class="nn">qcel</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span> <span class="nn">pyvpt2</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">mol</span> <span class="o">=</span> <span class="n">qcel</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">Molecule</span><span class="o">.</span><span class="n">from_data</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="s2">O   0.0   0.0         -0.12126642</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="s2">H   0.0  -1.42495308   0.96229308</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="s2">H   0.0   1.42495308   0.96229308</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span> 
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="c1"># set method here</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="n">qc_model</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;method&quot;</span><span class="p">:</span> <span class="s2">&quot;scf&quot;</span><span class="p">,</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>         <span class="s2">&quot;basis&quot;</span><span class="p">:</span> <span class="s2">&quot;6-31g*&quot;</span><span class="p">}</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="c1"># set qc level options here</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="n">qc_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;d_convergence&quot;</span><span class="p">:</span> <span class="mf">1e-10</span><span class="p">,</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>            <span class="s2">&quot;e_convergence&quot;</span><span class="p">:</span> <span class="mf">1e-10</span><span class="p">,</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>            <span class="p">}</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="c1"># set vpt2 level options here</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="n">options</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;FD&quot;</span><span class="p">:</span> <span class="s1">&#39;HESSIAN&#39;</span><span class="p">,</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>            <span class="s2">&quot;DISP_SIZE&quot;</span><span class="p">:</span> <span class="mf">0.05</span><span class="p">,</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>            <span class="s2">&quot;QC_PROGRAM&quot;</span><span class="p">:</span> <span class="s2">&quot;psi4&quot;</span><span class="p">,</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>            <span class="p">}</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="n">inp</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;molecule&quot;</span><span class="p">:</span> <span class="n">mol</span><span class="p">,</span>
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>        <span class="s2">&quot;input_specification&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="n">qc_model</span><span class="p">,</span>
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>                                <span class="s2">&quot;keywords&quot;</span><span class="p">:</span> <span class="n">qc_kwargs</span><span class="p">}],</span>
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>        <span class="s2">&quot;keywords&quot;</span><span class="p">:</span> <span class="n">options</span><span class="p">}</span>
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="n">results</span> <span class="o">=</span> <span class="n">pyvpt2</span><span class="o">.</span><span class="n">vpt2_from_schema</span><span class="p">(</span><span class="n">inp</span><span class="p">)</span>
+</span></code></pre></div></p>
+<p>pyVPT2 accepts QCSchema specification of the input molecule (<code>"molecule"</code>) and quantum chemistry model specification (<code>"input_specification"</code>).
+pyVPT2 specific options are specified with the <code>"keywords"</code> section.
+Details on specifying molecular geometries can be found in the <a href="https://molssi.github.io/QCElemental/model_molecule.html">QCElemental documentation</a>.
+Molecular geometries should be tightly converged before frequency analysis. Choices for QCEngine intregrated geometry optimizers include <a href="https://github.com/psi-rking/optking">optking</a> and <a href="https://github.com/leeping/geomeTRIC">geomeTRIC</a>.
+Choices for QCEngine supported quantum chemistry programs can be found <a href="https://molssi.github.io/QCEngine/program_overview.html">here</a>.
+It is very important to note that finite-difference calculations require tightly converged energies for numerical stability. It is highly advised to specify tight convergence criteria in the QC program keywords.</p>
 <h3 id="options-list">Options list:</h3>
 <ul>
 <li><code>DISP_SIZE</code> (Default: 0.05) Displacement size used in finite-difference calculations.</li>
-<li><code>METHOD</code> (Default: "SCF") Method formatted as string for psi4. In multilevel calculation, used for harmonic portion only.</li>
-<li><code>METHOD_2</code> (Default: None) Method for cubic/quartic force constants. Used only for multilevel calculations.</li>
 <li><code>FD</code> (Default: "HESSIAN") Level of finite-difference calculation. Choose highest analytical derivative available for chosen method. Options: "ENERGY", "GRADIENT", or "HESSIAN"   </li>
 <li><code>FERMI</code> (Default: True) Deperturb Fermi resonances?</li>
 <li><code>GVPT2</code> (Default: False) Diagonalize Fermi resonances? Requires <code>FERMI</code> to be enabled.</li>
 <li><code>FERMI_OMEGA_THRESH</code> (Default: 200) Frequency difference threshold below which to deperturb resonances.</li>
 <li><code>FERMI_K_THRESH</code> (Default: 1) Coupling threshold above which to depertub resonances.</li>
 <li><code>RETURN_PLAN</code> (Default: False) Return a plan of tasks to be sent to a QCPortal client?</li>
+<li><code>VPT2_OMEGA_THRESH</code> (Default: 1) Frequency below which to omit from VPT2 treatment`</li>
+<li><code>QC_PROGRAM</code> (Default: "psi4") QC program to run </li>
+<li><code>MULTILEVEL</code> (Default: False) Use different levels of theory for harmonic and anharmonic portions</li>
+<li><code>TASK_CONFIG</code> qcengine task configuration settings</li>
 </ul>
 
 
