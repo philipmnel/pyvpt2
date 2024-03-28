@@ -31,7 +31,7 @@ pip install .
 
 ### Copyright
 
-Copyright (c) 2021-2023, Philip Nelson
+Copyright (c) 2021-2024, Philip Nelson
 
 
 #### Acknowledgements
