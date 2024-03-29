@@ -1,0 +1,17 @@
+name: docs
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  # Build
+  - setuptools
+  - setuptools-scm
+  # Core
+  - python
+  - qcengine
+  - psi4
+  - pydantic < 2.0
+  # Docs
+  - mkdocs
+  - mkdocs-material
+  - mkdocstrings-python

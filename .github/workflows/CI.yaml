@@ -73,45 +73,20 @@ jobs:
             python-version: "3.10"
             runs-on: ubuntu-latest
 
-    name: "🐍 ${{ matrix.cfg.python-version }} • ${{ matrix.cfg.label }}"
+    name: "🐍 ${{ matrix.cfg.python-version }} | ${{ matrix.cfg.label }}"
     runs-on: ${{ matrix.cfg.runs-on }}
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Write a Conda Env File
-      run: |
-          cat > export.yaml <<EOF
-          name: test
-          channels:
-            - conda-forge
-            - nodefaults
-          dependencies:
-            # Build
-            - setuptools
-            - setuptools-scm
-            # Core
-            - python
-            - qcengine
-            - psi4
-            - pydantic < 2.0
-            # Docs
-            - mkdocs
-            - mkdocs-material
-            - mkdocstrings-python
-          EOF
-          cat export.yaml
-
     - name: Create Environment
-      uses: conda-incubator/setup-miniconda@v3
+      uses: mamba-org/setup-micromamba@v1
       with:
-        activate-environment: test
-        environment-file: export.yaml
-        python-version: ${{ matrix.cfg.python-version }}
-        auto-activate-base: false
-        show-channel-urls: true
-        add-pip-as-python-dependency: true
-        channels: conda-forge,nodefaults
+        create-args: python=${{ matrix.python-version }}
+        environment-file: devtools/conda-envs/docs_env.yaml
+        environment-name: docs
+        condarc: | 
+          channel_priority: flexible
 
     - name: Environment Information
       run: |
