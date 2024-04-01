@@ -4,6 +4,15 @@ pyVPT2 is a python package to calculate anharmonic vibrational frequencies of mo
 
 Code is available on [github](https://github.com/philipmnel/pyvpt2)
 
+## Installation
+Clone repo from gh link above and `pip install .`
+
+### Dependencies
+- `psi4`
+- `qcengine`
+- `pydantic < 2.0`
+
+
 ## Index
 - [Tutorial and Usage](/tutorial)
 - [API Reference](/api)
