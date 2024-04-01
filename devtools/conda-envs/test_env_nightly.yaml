@@ -1,6 +1,5 @@
 name: test-nightly
 channels:
-  - conda-forge/label/libint_dev
   - conda-forge/label/psi4_dev
   - conda-forge
 
