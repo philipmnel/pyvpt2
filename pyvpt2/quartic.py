@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple
 
 import numpy as np
 import psi4
-from pydantic import validator
 from qcelemental.models import AtomicResult, DriverEnum
 
 try:
