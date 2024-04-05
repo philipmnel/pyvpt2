@@ -10,7 +10,6 @@ Clone repo from gh link above and `pip install .`
 ### Dependencies
 - `psi4`
 - `qcengine`
-- `pydantic < 2.0`
 
 
 ## Index
