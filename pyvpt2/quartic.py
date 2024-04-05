@@ -7,8 +7,12 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple
 
 import numpy as np
 import psi4
-from pydantic import validator
 from qcelemental.models import AtomicResult, DriverEnum
+
+try:
+    from pydantic.v1 import Field, validator
+except ImportError:
+    from pydantic import Field, validator
 
 # Local imports:
 from .constants import wave_to_hartree
