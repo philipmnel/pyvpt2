@@ -10,8 +10,8 @@ dependencies:
   - python
   - qcengine
   - psi4
-  - pydantic < 2.0
-  # Docs
+  - pydantic
+  # Doc
   - mkdocs
   - mkdocs-material
   - mkdocstrings-python
