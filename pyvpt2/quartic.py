@@ -10,6 +10,11 @@ import psi4
 from pydantic import validator
 from qcelemental.models import AtomicResult, DriverEnum
 
+try:
+    from pydantic.v1 import Field, validator
+except ImportError:
+    from pydantic import Field, validator
+
 # Local imports:
 from .constants import wave_to_hartree
 from .task_base import AtomicComputer, BaseComputer
