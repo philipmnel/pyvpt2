@@ -323,48 +323,6 @@ def vpt2_from_schema(inp: VPTInput) -> VPTResult:
 
     return result_dict
 
-
-def vpt2(mol: psi4.core.Molecule, **kwargs) -> Dict:
-    """
-    Performs vibrational pertubration theory calculation)
-    (Deprecated)
-
-    Parameters
-    ----------
-    mol: psi4.core.Molecule
-        Input molecule
-
-    Returns
-    -------
-    Dict
-        VPT2 results dictionary
-    """
-
-    kwargs = process_options_keywords(**kwargs)
-
-    mol.move_to_com()
-    mol.fix_com(True)
-    mol.fix_orientation(True)
-    rotor_type = check_rotor(mol)
-
-    #if not (rotor_type in ["RT_LINEAR", "RT_ASYMMETRIC_TOP"]):
-    #    raise Exception("pyVPT2 can only be run on linear or asymmetric tops. Detected rotor type is {}".format(rotor_type))
-
-    plan = harmonic(mol, **kwargs)
-    if kwargs.get("RETURN_PLAN", False):
-        return plan
-    else:
-        with psi4.p4util.hold_options_state():
-            plan.compute()
-        harmonic_result = plan.get_results()
-
-    plan = vpt2_from_harmonic(harmonic_result, **kwargs)
-    plan.compute()
-    quartic_result = plan.get_results()
-    result_dict = process_vpt2(quartic_result, **kwargs)
-
-    return result_dict
-
 def vpt2_from_harmonic(harmonic_result: AtomicResult, qc_spec, **kwargs) -> quartic.QuarticComputer:
     """
     Peforms VPT2 calculation starting from harmonic results
