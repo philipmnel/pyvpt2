@@ -13,5 +13,5 @@ Clone repo from gh link above and `pip install .`
 
 
 ## Index
-- [Tutorial and Usage](/tutorial)
-- [API Reference](/api)
+- [Tutorial and Usage](/pyvpt2/tutorial)
+- [API Reference](/pyvpt2/api)
