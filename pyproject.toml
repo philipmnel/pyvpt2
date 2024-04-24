@@ -2,6 +2,21 @@
 requires = ["setuptools >= 40.6.0", "wheel", "setuptools-git-versioning"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "pyvpt2"
+dynamic = ["version"]
+authors = [{name = "Philip Nelson", email = "pmnelson@gatech.edu"}]
+description = "Package to calculate VPT2 anharmonic frequencies."
+readme = "README.md"
+license = {text = "BSD-3-Clause"}
+requires-python = ">=3.8"
+
+[tool.setuptools.packages]
+find = {}
+
+[tool.coverage.run]
+omit = ["*/tests/*"]
+
 [tool.setuptools-git-versioning]
 enabled = true
 dev_template = "{tag}.{ccount}+git.{sha}"
