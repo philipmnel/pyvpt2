@@ -488,18 +488,18 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
     if check_rotor(mol) == "RT_LINEAR":
         # Only do degeneracies on linear mols for now
         for i,j in itertools.combinations(v_ind, 2):
-            if abs(omega[i] - omega[j]) < 0.2: #TODO: tolerance value probably not ideal
+            if abs(omega[i] - omega[j]) < 0.05: #TODO: tolerance value probably not ideal
                 degeneracy[i] += 1
                 v_ind_degen.append(i)
                 v_ind_nondegen.remove(i)
                 v_ind_nondegen.remove(j)
-                # This assumes only linear mols (degeneracy of 2)
+                # This assumes only linear mols (max degeneracy of 2)
                 degen_mode_map[i] = j
 
     v_ind_all = v_ind_nondegen.copy()
     v_ind_all.extend(v_ind_degen)
     zeta, B = coriolis(mol, harm['q'])
-    rotor_type = mol.rotor_type()
+    rotor_type = check_rotor(mol)
     fermi_list = identify_fermi(omega, phi_ijk, n_modes, v_ind, **kwargs)
 
     chi = np.zeros((n_modes, n_modes))
