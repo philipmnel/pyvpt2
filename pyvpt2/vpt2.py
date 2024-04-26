@@ -739,7 +739,6 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
                     delta *= omega[i] - omega[j] - omega[k]
                     return delta
 
-
                 for k in v_ind_nondegen:
                     for order, phi_mst_val in phi_mst[(k,i,j)].items():
                         delta = compute_delta_ij2(i,j,k,omega)
@@ -756,9 +755,18 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
                 for order, phi_stt_val in phi_sst[(j,j,i)].items():
                     g[i,j] += delta_sig_pp[order] * phi_stt_val * omega[j]**2 / (omega[i] * (4*omega[j]**2 - omega[i]**2))
 
+                def s_tau(tau, i, j):
+                    from math import copysign
+                    s = copysign(1, zeta[tau, i, j] * zeta[tau, degen_mode_map[i], degen_mode_map[j]])
+                    return s
 
-                #TODO: rotational contributions to g_ij
-                #g[i,j] += B[0] * zeta[i,j]
+                def s2_tau(tau, i, j):
+                    from math import copysign
+                    s = copysign(1, zeta[tau, i, degen_mode_map[j]] * zeta[tau, degen_mode_map[i], j])
+                    return s
+
+                g[i,j] += B[1] * ((s_tau[1] - s2_tau[2]) * zeta[1, i, j]**2 + (s_tau[2] - s2_tau[1]) * zeta[2, i, j]**2 )
+                g[i,j] += B[0] * (zeta[0, i, j]**2 + zeta[0, i, degen_mode_map[j]]**2 + 2 * zeta[0, i, degen_mode_map[i]] * zeta[0, j, degen_mode_map[j]])
 
 
     # eq. 32
