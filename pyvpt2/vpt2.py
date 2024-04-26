@@ -527,8 +527,8 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
             for t in v_ind_degen:
                 if s == t: continue
                 phi_mst[(m,s,t)] = {}
-                if symm_labels[m] in ["A1", "Ag", "B1u"]:
-                    phi_mst[(m,s,t)].update({1: phi_ijk[m,s,degen_mode_map[t]] + phi_ijk[m,s,t]})
+                #if symm_labels[m] in ["A1", "Ag", "B1u"]:
+                phi_mst[(m,s,t)].update({1: phi_ijk[m,s,degen_mode_map[t]] + phi_ijk[m,s,t]})
 
     for s in v_ind_degen:
         phi_sss[(s,s,s)] = {}
@@ -554,7 +554,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
 
         for j in v_ind_nondegen:
             if i == j:
-                #chi_mm
+                #chi_mm, eq. 36
                 chi[i, i] = phi_iijj[i, i]
 
                 for k in v_ind_nondegen:
@@ -570,7 +570,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
                 chi[i, i] /= 16
 
             else:
-                #chi_mn
+                #chi_mn, eq. 37
                 chi[i, j] = phi_iijj[i, j]
 
                 factor = 4 * (omega[i] ** 2 + omega[j] ** 2) / (omega[i] * omega[j])
@@ -586,7 +586,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
                 chi[i, j] /= 4
 
         for j in v_ind_degen:
-            #chi_ms
+            #chi_ms, eq. 38
             for phi_mmss_val in phi_mmss[(i,j)].values():
                 chi[i,j] += phi_mmss_val
 
@@ -613,9 +613,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
                     chi[i,j] += phi_mst_val**2 * delta_ij
 
             factor = 4 * (omega[i] ** 2 + omega[j] ** 2) / (omega[i] * omega[j])
-            chi[i, j] += factor * B[0] * (zeta[0, i, j] ** 2 + zeta[0, i, degen_mode_map[j]]**2)
-            rot_contrib = factor * B[0] * (zeta[0, i, j] ** 2 + zeta[0, i, degen_mode_map[j]]**2)
-            print(i, j, rot_contrib/4)
+            chi[i, j] += factor * B[1] * (zeta[1, i, j] ** 2 + zeta[1, i, degen_mode_map[j]]**2)
 
             chi[i, j] /= 4
             chi[j, i] = chi[i, j]
@@ -623,7 +621,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
     for i in v_ind_degen:
         for j in v_ind_degen:
             if i == j:
-                # chi_ss
+                # chi_ss, eq. 39
 
                 for order, phi_ssss_val in phi_ssss[(i,i)].items():
                     chi[i, i] = delta_sig[order] * phi_ssss_val
@@ -656,7 +654,7 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
 
                 chi[i,i] /= 16
 
-                # g_ss
+                # g_ss, eq. 41
                 for order, phi_ssss_val in phi_ssss[(i,i)].items():
                     g[i, i] = -1/3 * delta_sig[order] * phi_ssss_val
 
@@ -697,12 +695,12 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
                             temp /= (omega[k] * (4 * omega[i] ** 2 - omega[k] ** 2))
                             g[i, i] +=  temp
 
-                g[i,i] += 16 * B[2] * zeta[2, i, degen_mode_map[i]]**2
+                g[i,i] += 16 * B[0] * zeta[0, i, degen_mode_map[i]]**2
 
                 g[i, i] /= 16
 
             else:
-                #chi_st
+                #chi_st, eq. 40
                 for order, phi_sstt_val in phi_sstt[(i,j)].items():
                     chi[i,j] += delta_sig_p[order] * phi_sstt_val
 
@@ -727,12 +725,13 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
                         chi[i,j] += phi_stu_val**2 * delta_ij
 
                 factor = 4 * (omega[i] ** 2 + omega[j] ** 2) / (omega[i] * omega[j])
-                rot = 1/2 * B[2] * (zeta[2,i,j]**2 + zeta[2,i,degen_mode_map[j]]**2)
-                rot += B[0] * (zeta[0,i,j]**2 + zeta[1,i,j]**2)
+                rot = 1/2 * B[0] * (zeta[0,i,j]**2 + zeta[0,i,degen_mode_map[j]]**2)
+                rot += B[1] * (zeta[1,i,j]**2 + zeta[2,i,j]**2)
                 chi[i,j] += factor * rot
 
                 chi[i,j] /= 4
 
+                #g_st, eq. 42
                 def compute_delta_ij2(i,j,k,omega):
                     delta = omega[i] + omega[j] - omega[k]
                     delta *= omega[i] + omega[j] + omega[k]
@@ -759,8 +758,10 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
 
 
                 #TODO: rotational contributions to g_ij
+                #g[i,j] += B[0] * zeta[i,j]
 
 
+    # eq. 32
     zpve = 0.0
     for i in v_ind_all:
         zpve += 1/2 * omega[i] * degeneracy[i]
@@ -843,20 +844,20 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
 
     for i in v_ind_nondegen:
         for j in v_ind_degen:
-            temp = (zeta[0, i, j]**2 + zeta[0, i, degen_mode_map[j]]**2)
+            temp = (zeta[1, i, j]**2 + zeta[1, i, degen_mode_map[j]]**2)
             temp *= ((omega[i]**2 + omega[j]**2) / (omega[i] * omega[j]) - 2)
-            zpve += B[0] * temp / 2
+            zpve += B[1] * temp / 2
 
     for i in v_ind_degen:
         for j in v_ind_degen:
             if j <= i: continue
-            temp = (zeta[2, i, j]**2 + zeta[2, i, degen_mode_map[j]]**2)
+            temp = (zeta[0, i, j]**2 + zeta[0, i, degen_mode_map[j]]**2)
             temp *= ((omega[i]**2 + omega[j]**2) / (omega[i] * omega[j]) - 2)
-            zpve += B[2] * temp / 2
+            zpve += B[0] * temp / 2
 
-            temp = (zeta[0, i, j]**2 + zeta[1, i, j]**2)
+            temp = (zeta[1, i, j]**2 + zeta[2, i, j]**2)
             temp *= ((omega[i]**2 + omega[j]**2) / (omega[i] * omega[j]) - 2)
-            zpve += B[0] * temp
+            zpve += B[1] * temp
 
 
     print("\nAnharmonic Constants (cm-1)")
