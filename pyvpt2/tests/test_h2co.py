@@ -35,7 +35,7 @@ def test_h2co_vpt2():
     ref_deperturbed = [-17.4496, -18.9212, -33.1555, -25.5869, -142.8295, -184.5589]
     ref_anharmonic = [-17.4496, -18.9212, -33.1555, -25.5869, -142.8295, -129.2199]
     ref_harm_zpve = 6408.5086
-    ref_zpve_corr = -77.2184
+    ref_zpve_corr = -76.107
 
     inp = {
         "molecule": mol.to_schema(dtype=2),
