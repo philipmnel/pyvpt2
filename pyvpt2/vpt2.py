@@ -518,11 +518,11 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
         for s in v_ind_degen:
             phi_mss[(m,s,s)] = {}
             phi_mmss[(m,s)] = {}
-            if symm_labels[m] in ["A1", "Ag", "B1u"]:
-                phi_mss[(m,s,s)].update({1: phi_ijk[m,s,s]})
+            #if symm_labels[m] in ["A1", "Ag", "B1u"]:
+            phi_mss[(m,s,s)].update({1: phi_ijk[m,s,s]})
 
-            if symm_labels[m] in ["A1", "A2", "Ag", "B1u"]:
-                phi_mmss[(m,s)].update({1: phi_iijj[m,s]})
+            #if symm_labels[m] in ["A1", "A2", "Ag", "B1u"]:
+            phi_mmss[(m,s)].update({1: phi_iijj[m,s]})
 
             for t in v_ind_degen:
                 if s == t: continue
