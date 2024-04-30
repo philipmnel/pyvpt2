@@ -2,6 +2,7 @@ pyVPT2
 ==============================
 [//]: # (Badges)
 ![CI workflow](https://github.com/philipmnel/pyvpt2/actions/workflows/CI.yaml/badge.svg)
+[![Docs](https://img.shields.io/github/actions/workflow/status/philipmnel/pyvpt2/CI.yml?label=docs&logo=readthedocs&logoColor=white)](https://philipmnel.github.io/pyvpt2/)
 [![codecov](https://codecov.io/gh/philipmnel/pyvpt2/branch/main/graph/badge.svg?token=goQRxdntmS)](https://codecov.io/gh/philipmnel/pyvpt2)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://github.com/philipmnel/pyvpt2/blob/main/LICENSE)
 [![Docs](https://img.shields.io/badge/Documentation-red)](https://philipmnel.github.io/pyvpt2/)
