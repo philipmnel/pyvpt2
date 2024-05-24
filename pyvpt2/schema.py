@@ -10,9 +10,12 @@ from qcelemental.models.basemodels import ProtoModel
 from qcelemental.models.common_models import Model, Provenance
 from qcelemental.models.procedures import QCInputSpecification
 from qcelemental.models.types import Array
+from importlib.metadata import version, PackageNotFoundError
 
-#from pyvpt2 import __version__
-
+try:
+    __version__ = version("package-name")
+except PackageNotFoundError:
+    __version__ = "unknown"
 
 def provenance_stamp() -> Dict[str, str]:
     """
@@ -20,7 +23,7 @@ def provenance_stamp() -> Dict[str, str]:
     """
     provenance = {
         "creator": "pyVPT2",
-        "version": 0.0,
+        "version": __version__,
         "routine": "VPT2"
     }
     return provenance
