@@ -24,7 +24,8 @@ def test_h2o_vpt2(driver):
                 'points': 5}
 
     options = {'FD': driver,
-            'DISP_SIZE': 0.05}
+            'FD_ACC': 2,
+            'DISP_SIZE': 0.10}
 
     ref_omega = [1826.8154, 4060.2203, 4177.8273]
     ref_anharmonic = [-54.0635, -158.2345, -177.9707]

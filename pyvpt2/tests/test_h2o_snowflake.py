@@ -52,12 +52,12 @@ def test_h2o_snowflake_vpt2(driver):
 
     harmonic_plan = pyvpt2.vpt2_from_schema(inp)
     harmonic_plan.compute(client=client)
-    snowflake.await_results()
+    snowflake.await_results(timeout=120)
     harmonic_ret = harmonic_plan.get_results(client=client)
 
     plan = pyvpt2.vpt2_from_harmonic(harmonic_ret, qc_spec=inp["input_specification"][0], **options)
     plan.compute(client=client)
-    snowflake.await_results()
+    snowflake.await_results(timeout=120)
     ret = plan.get_results(client=client)
     results = pyvpt2.process_vpt2(ret, **options)
 
