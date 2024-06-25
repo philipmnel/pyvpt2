@@ -169,6 +169,16 @@ def _geom_generator(mol: psi4.core.Molecule, data: Dict, mode: int) -> Dict:
             "disp1": ((-1, ), (1, ))
             }
         }
+    if data["options"]["FD_ACC"] == 4:
+        disp_list.update({
+            1: {
+                "disp1": ((-3, ), (-2, ), (-1, ), (1, ), (2, ), (3, )),
+                "disp2": ((-2, -2), (-2, -1), (-2, 1), (-2, 2),
+                        (-1, -2), (-1, -1), (-1, 1), (-1, 2),
+                        (1, -2), (1, -1), (1, 1), (1, 2),
+                        (2, -2), (2, -1), (2, 1), (2, 2))
+                }
+            })
 
     disps = disp_list[mode]
 
@@ -386,6 +396,141 @@ def assemble_quartic_from_gradients(findifrec: Dict) -> Tuple[np.ndarray, np.nda
 
     return phi_ijk, phi_iijj
 
+def assemble_quartic_from_gradients2(findifrec: Dict) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Generate cubic and quartic constants by finite difference of gradients.
+    High accuracy mode.
+
+    Parameters
+    ----------
+    findifrec: Dict
+        Dictionary of displaced calculations
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray]
+        (cubic force constants, quartic force constants)
+    """
+
+    n_modes = findifrec["harm"]["n_modes"]
+    grad0 = findifrec["reference"].get("gradient", findifrec["harm"].get("G0"))
+    q = findifrec["harm"]["modes"]
+    gamma = findifrec["harm"]["gamma"]
+    v_ind = findifrec["harm"]["v_ind"]
+    disp_size = findifrec["disp_size"]
+    displacements = findifrec["displacements"]
+
+    phi_ijk = np.zeros((n_modes, n_modes, n_modes))
+    phi_iijj = np.zeros((n_modes, n_modes))
+    grad = {}
+
+    def transform_grad(grad):
+        gradQ = np.matmul(q.transpose(), grad.reshape(-1))
+        gradQ = np.einsum("i,i->i", gradQ, np.sqrt(gamma), optimize=True)
+        return gradQ
+
+    grad0 = transform_grad(grad0)
+    for label in displacements:
+        split_label = label.split(', ')
+        for this_label in itertools.permutations(split_label):
+            this_label = ', '.join(this_label)
+            grad[this_label] = transform_grad(displacements[label]["gradient"])
+
+    for i in v_ind:
+
+        grad_p = grad[f"{i}: 1"]
+        grad_n = grad[f"{i}: -1"]
+        grad_2p = grad[f"{i}: 2"]
+        grad_2n = grad[f"{i}: -2"]
+        grad_3p = grad[f"{i}: 3"]
+        grad_3n = grad[f"{i}: -3"]
+
+        phi_iijj[i, i] = grad_3n[i] - 8 * grad_2n[i] + 13 * grad_n[i]
+        phi_iijj[i, i] += -grad_3p[i] + 8 * grad_2p[i] - 13 * grad_p[i]
+        phi_iijj[i, i] /= 8 * disp_size ** 3
+
+        phi_ijk[i, i, i] = 1/90 * grad_3n[i] - 3/20 * grad_2n[i] + 3/2 * grad_n[i] - 49/18 * grad0[i]
+        phi_ijk[i, i, i] += 1/90 * grad_3p[i] - 3/20 * grad_2p[i] + 3/2 * grad_p[i]
+        phi_ijk[i, i, i] /= disp_size ** 2
+
+    for [i, j] in itertools.permutations(v_ind, 2):
+
+        grad_p = grad[f"{j}: 1"]
+        grad_n = grad[f"{j}: -1"]
+
+        phi_ijk[i, j, j] = grad_p[i] + grad_n[i] - 2 * grad0[i]
+        phi_ijk[i, j, j] /= disp_size ** 2
+        phi_ijk[j, j, i] = phi_ijk[i, j, j]
+        phi_ijk[j, i, j] = phi_ijk[i, j, j]
+
+        grad_p = grad[f"{i}: 1"][i]
+        grad_2p = grad[f"{i}: 2"][i]
+        grad_n = grad[f"{i}: -1"][i]
+        grad_2n = grad[f"{i}: -2"][i]
+
+        grad_2n2n = grad[f"{i}: -2, {j}: -2"][i]
+        grad_2nn = grad[f"{i}: -2, {j}: -1"][i]
+        grad_2np = grad[f"{i}: -2, {j}: 1"][i]
+        grad_2n2p = grad[f"{i}: -2, {j}: 2"][i]
+
+        grad_n2n = grad[f"{i}: -1, {j}: -2"][i]
+        grad_nn = grad[f"{i}: -1, {j}: -1"][i]
+        grad_np = grad[f"{i}: -1, {j}: 1"][i]
+        grad_n2p = grad[f"{i}: -1, {j}: 2"][i]
+
+        grad_p2n = grad[f"{i}: 1, {j}: -2"][i]
+        grad_pn = grad[f"{i}: 1, {j}: -1"][i]
+        grad_pp = grad[f"{i}: 1, {j}: 1"][i]
+        grad_p2p = grad[f"{i}: 1, {j}: 2"][i]
+
+        grad_2p2n = grad[f"{i}: 2, {j}: -2"][i]
+        grad_2pn = grad[f"{i}: 2, {j}: -1"][i]
+        grad_2pp = grad[f"{i}: 2, {j}: 1"][i]
+        grad_2p2p = grad[f"{i}: 2, {j}: 2"][i]
+
+        phi_iijj[i, j] = -1/144 * grad_2n2n + 2/36 * grad_n2n - 2/36 * grad_p2n + 1/144 * grad_2p2n
+        phi_iijj[i, j] += 1/9 * grad_2nn - 8/9 * grad_nn + 8/9 * grad_pn - 1/9 * grad_2pn
+        phi_iijj[i, j] += -5/24 * grad_2n + 5/3 * grad_n - 5/3 * grad_p + 5/24 * grad_2p
+        phi_iijj[i, j] += 1/9 * grad_2np - 8/9 * grad_np + 8/9 * grad_pp - 1/9 * grad_2pp
+        phi_iijj[i, j] += -1/144 * grad_2n2p + 2/36 * grad_n2p - 2/36 * grad_p2p + 1/144 * grad_2p2p
+
+        phi_iijj[i, j] /= disp_size **3
+
+    for [i, j, k] in itertools.permutations(v_ind, 3):
+
+        grad_2n2n = grad[f"{k}: -2, {j}: -2"][i]
+        grad_2nn = grad[f"{k}: -2, {j}: -1"][i]
+        grad_2np = grad[f"{k}: -2, {j}: 1"][i]
+        grad_2n2p = grad[f"{k}: -2, {j}: 2"][i]
+
+        grad_n2n = grad[f"{k}: -1, {j}: -2"][i]
+        grad_nn = grad[f"{k}: -1, {j}: -1"][i]
+        grad_np = grad[f"{k}: -1, {j}: 1"][i]
+        grad_n2p = grad[f"{k}: -1, {j}: 2"][i]
+
+        grad_p2n = grad[f"{k}: 1, {j}: -2"][i]
+        grad_pn = grad[f"{k}: 1, {j}: -1"][i]
+        grad_pp = grad[f"{k}: 1, {j}: 1"][i]
+        grad_p2p = grad[f"{k}: 1, {j}: 2"][i]
+
+        grad_2p2n = grad[f"{k}: 2, {j}: -2"][i]
+        grad_2pn = grad[f"{k}: 2, {j}: -1"][i]
+        grad_2pp = grad[f"{k}: 2, {j}: 1"][i]
+        grad_2p2p = grad[f"{k}: 2, {j}: 2"][i]
+
+        phi_ijk[i, j, k] = 1/144 * grad_2n2p - 1/18 * grad_n2p + 1/18 * grad_p2p - 1/144 * grad_2p2p
+        phi_ijk[i, j, k] += -1/18 * grad_2n2p + 4/9 * grad_n2p - 4/9 * grad_p2p + 1/18 * grad_2p2p
+        phi_ijk[i, j, k] += 1/18 * grad_2n2p - 4/9 * grad_n2p + 4/9 * grad_p2p - 1/18 * grad_2p2p
+        phi_ijk[i, j, k] += -1/144 * grad_2n2p + 1/18 * grad_n2p - 1/18 * grad_p2p + 1/144 * grad_2p2p
+        phi_ijk[i, j, k] /= disp_size**2
+
+    phi_ijk = phi_ijk / wave_to_hartree
+    phi_ijk = check_cubic(phi_ijk, v_ind)
+    phi_iijj = phi_iijj / wave_to_hartree
+    phi_iijj = check_quartic(phi_iijj, v_ind)
+
+    return phi_ijk, phi_iijj
+
 def assemble_quartic_from_hessians(findifrec: Dict) -> Tuple[np.ndarray, np.ndarray]:
     """
     Generate cubic and quartic constants by finite difference of Hessians.
@@ -495,6 +640,7 @@ class QuarticComputer(BaseComputer):
 
         mode_dict = {"ENERGY": 0, "GRADIENT": 1, "HESSIAN": 2}
         self.metameta['mode'] = mode_dict[data['options']['FD']]
+        self.metameta['acc'] = data['options']['FD_ACC']
 
         if self.metameta['mode'] == 0:
             self.metameta['proxy_driver'] = 'energy'
@@ -630,7 +776,10 @@ class QuarticComputer(BaseComputer):
         if self.metameta['mode'] == 0:
             phi_ijk, phi_iijj = assemble_quartic_from_energies(self.findifrec)
         if self.metameta['mode'] == 1:
-            phi_ijk, phi_iijj = assemble_quartic_from_gradients(self.findifrec)
+            if self.metameta['acc'] == 2:
+                phi_ijk, phi_iijj = assemble_quartic_from_gradients(self.findifrec)
+            elif self.metameta['acc'] == 4:
+                phi_ijk, phi_iijj = assemble_quartic_from_gradients2(self.findifrec)
         if self.metameta['mode'] == 2:
             phi_ijk, phi_iijj = assemble_quartic_from_hessians(self.findifrec)
 

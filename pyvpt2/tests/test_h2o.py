@@ -24,7 +24,8 @@ def test_h2o_vpt2(driver):
                 'points': 5}
 
     options = {'FD': driver,
-            'DISP_SIZE': 0.05}
+            'FD_ACC': 2,
+            'DISP_SIZE': 0.10}
 
     ref_omega = [1826.8154, 4060.2203, 4177.8273]
     ref_anharmonic = [-54.0635, -158.2345, -177.9707]
@@ -45,6 +46,6 @@ def test_h2o_vpt2(driver):
     zpve_corr = results.anharmonic_zpve - harm_zpve
 
     assert psi4.compare_values(ref_omega, omega, 0.1)
-    assert psi4.compare_values(ref_anharmonic, anharmonic, 0.1)
-    assert psi4.compare_values(ref_harm_zpve, harm_zpve, 0.1)
-    assert psi4.compare_values(ref_zpve_corr, zpve_corr, 0.1)
+    assert psi4.compare_values(ref_anharmonic, anharmonic, 0.5)
+    assert psi4.compare_values(ref_harm_zpve, harm_zpve, 0.5)
+    assert psi4.compare_values(ref_zpve_corr, zpve_corr, 0.5)

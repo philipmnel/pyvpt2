@@ -192,6 +192,7 @@ def process_options_keywords(**kwargs) -> Dict:
         "VPT2_OMEGA_THRESH": 1,
         "QC_PROGRAM": "psi4",
         "MULTILEVEL": False,
+        "FD_ACC": 2,
         "TASK_CONFIG": {
             "memory": psi4.core.get_memory() / (2 ** 30),
             "ncores": psi4.core.get_num_threads(),
