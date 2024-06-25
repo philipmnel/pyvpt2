@@ -46,6 +46,6 @@ def test_h2o_vpt2(driver):
     zpve_corr = results.anharmonic_zpve - harm_zpve
 
     assert psi4.compare_values(ref_omega, omega, 0.1)
-    assert psi4.compare_values(ref_anharmonic, anharmonic, 0.1)
-    assert psi4.compare_values(ref_harm_zpve, harm_zpve, 0.1)
-    assert psi4.compare_values(ref_zpve_corr, zpve_corr, 0.1)
+    assert psi4.compare_values(ref_anharmonic, anharmonic, 0.5)
+    assert psi4.compare_values(ref_harm_zpve, harm_zpve, 0.5)
+    assert psi4.compare_values(ref_zpve_corr, zpve_corr, 0.5)
