@@ -518,9 +518,9 @@ def assemble_quartic_from_gradients2(findifrec: Dict) -> Tuple[np.ndarray, np.nd
         grad_2pp = grad[f"{k}: 2, {j}: 1"][i]
         grad_2p2p = grad[f"{k}: 2, {j}: 2"][i]
 
-        phi_ijk[i, j, k] = 1/144 * grad_2n2p - 1/18 * grad_n2p + 1/18 * grad_p2p - 1/144 * grad_2p2p
-        phi_ijk[i, j, k] += -1/18 * grad_2n2p + 4/9 * grad_n2p - 4/9 * grad_p2p + 1/18 * grad_2p2p
-        phi_ijk[i, j, k] += 1/18 * grad_2n2p - 4/9 * grad_n2p + 4/9 * grad_p2p - 1/18 * grad_2p2p
+        phi_ijk[i, j, k] = 1/144 * grad_2n2n - 1/18 * grad_2nn + 1/18 * grad_2np - 1/144 * grad_2n2p
+        phi_ijk[i, j, k] += -1/18 * grad_n2n + 4/9 * grad_nn - 4/9 * grad_np + 1/18 * grad_n2p
+        phi_ijk[i, j, k] += 1/18 * grad_p2n - 4/9 * grad_pn + 4/9 * grad_pp - 1/18 * grad_p2p
         phi_ijk[i, j, k] += -1/144 * grad_2n2p + 1/18 * grad_n2p - 1/18 * grad_p2p + 1/144 * grad_2p2p
         phi_ijk[i, j, k] /= disp_size**2
 
