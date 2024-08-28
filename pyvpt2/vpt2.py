@@ -206,6 +206,9 @@ def process_options_keywords(**kwargs) -> Dict:
     for k, v in keyword_defaults.items():
         kwargs.setdefault(k, v)
 
+    for k in ["FD"]:
+        v = kwargs[k]
+        kwargs.update({k: v.upper()})
 
     return kwargs
 
