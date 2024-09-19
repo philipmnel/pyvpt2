@@ -53,7 +53,7 @@ from psi4.driver import p4util
 if TYPE_CHECKING:
     import qcportal
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(f"psi4.{__name__}")
 
 EnergyGradientHessianWfnReturn = Union[float, core.Matrix, Tuple[Union[float, core.Matrix], core.Wavefunction]]
 
