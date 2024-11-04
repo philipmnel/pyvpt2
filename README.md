@@ -25,7 +25,12 @@ Optional:
 - qcportal = `next`
 
 ### Installation
-To install from source, clone this repository and run
+pyVPT2 can be installed from conda:
+```
+conda install pyvpt2 -c conda-forge
+```
+
+Or, to install from source, clone this repository and run
 ```
 pip install .
 ```
