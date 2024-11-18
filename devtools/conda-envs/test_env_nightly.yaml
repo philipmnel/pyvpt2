@@ -5,15 +5,15 @@ channels:
 
 dependencies:
   - psi4
-  - qcfractal
-  - qcportal < 0.56
+  - qcfractal >= 0.56
+  - qcportal >= 0.56
   - qcelemental
   - nwchem
 
     # Base depends
   - python
   - pip
-  - pydantic < 2
+  - pydantic
 
     # Testing
   - pytest
