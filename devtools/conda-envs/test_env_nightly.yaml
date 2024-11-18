@@ -13,7 +13,7 @@ dependencies:
     # Base depends
   - python
   - pip
-  - pydantic
+  - pydantic < 2
 
     # Testing
   - pytest
