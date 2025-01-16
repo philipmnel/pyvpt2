@@ -1,23 +1,20 @@
-pyVPT2
-==============================
-[//]: # (Badges)
+<img src="https://github.com/philipmnel/pyvpt2/blob/main/docs/media/pyvpt2.png" height=150>
+
 [![CI](https://img.shields.io/github/actions/workflow/status/philipmnel/pyvpt2/CI.yaml?logo=github)](https://github.com/philipmnel/pyvpt2/actions?query=workflow%3ACI)
 [![Docs](https://img.shields.io/github/actions/workflow/status/philipmnel/pyvpt2/CI.yaml?label=docs&logo=readthedocs&logoColor=white)](https://philipmnel.github.io/pyvpt2/)
 [![codecov](https://codecov.io/gh/philipmnel/pyvpt2/branch/main/graph/badge.svg?token=goQRxdntmS)](https://codecov.io/gh/philipmnel/pyvpt2)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://github.com/philipmnel/pyvpt2/blob/main/LICENSE)
 
-
+# pyVPT2
 ### About
 pyVPT2 is a package to calculate VPT2 vibrational frequencies using psi4 or qcengine. Cubic/quartic constants can be optionally computed in a distributed parallel fashion using QCFractal.
 
 For usage check the [documentation](https://philipmnel.github.io/pyvpt2/).
 
-Disclaimer: This codebase is still under active development.
-
 ### Dependencies
 Required:
 - psi4 = 1.8+
-- python = 3.8+
+- python = 3.9+
 
 Installing psi4 will pull all other required dependencies.
 
