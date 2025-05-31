@@ -10,6 +10,7 @@ mol = qcel.models.Molecule.from_data("""
 O   0.0   0.0         -0.12126642
 H   0.0  -1.42495308   0.96229308
 H   0.0   1.42495308   0.96229308
+units au
 """) 
 
 # set method here
@@ -58,6 +59,7 @@ mol = qcel.models.Molecule.from_data("""
 O   0.0   0.0         -0.12126642
 H   0.0  -1.42495308   0.96229308
 H   0.0   1.42495308   0.96229308
+units au
 """) 
 
 # set high-level method here
