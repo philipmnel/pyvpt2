@@ -487,7 +487,10 @@ def process_vpt2(quartic_result: AtomicResult, **kwargs) -> VPTResult:
                 chi[i, i] /= 16
 
             else:
-                chi0 += 3 * omega[i]* phi_ijk[i, j, j] ** 2 / (4 * omega[j] ** 2 - omega[i] ** 2)
+                if (i, (j,j)) in fermi_list:
+                    chi0 -= 3 * omega[j]* phi_ijk[i, j, j] ** 2 / (4 * omega[i] ** 2 + 2 * omega[i] * omega[j])
+                else: 
+                    chi0 += 3 * omega[i]* phi_ijk[i, j, j] ** 2 / (4 * omega[j] ** 2 - omega[i] ** 2)
                 chi[i, j] = phi_iijj[i, j]
                 rot = 0
                 for b_ind in range(0, 3):
