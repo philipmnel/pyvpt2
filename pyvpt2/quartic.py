@@ -63,7 +63,12 @@ def check_cubic(phi_ijk: np.ndarray, v_ind: List[int]) -> np.ndarray:
 def check_quartic(phi_iijj: np.ndarray, v_ind: List) -> np.ndarray:
     """
     Checks quartic force constants for any numerical inconsistencies, symmetrizes results,
-    prints results to output file
+    prints results to output file.
+
+    Note: this compares phi_iijj with phi_jjii. For the Hessian route the two are averaged
+    before they reach this function, so the comparison is trivially satisfied there; the
+    disagreement between the two finite-difference routes is reported by
+    report_quartic_routes instead.
 
     Parameters
     ----------
@@ -93,6 +98,52 @@ def check_quartic(phi_iijj: np.ndarray, v_ind: List) -> np.ndarray:
 
     phi_iijj = 0.5 * (phi_iijj + phi_iijj.T)
     return phi_iijj
+
+def report_quartic_routes(route_a: np.ndarray, route_b: np.ndarray, v_ind: List, warn_above: float = 10.0) -> Dict:
+    """
+    Compare the two independent finite-difference routes to each off-diagonal semi-diagonal
+    quartic constant and report their disagreement.
+
+    For i != j, phi_iijj can be formed from the Hessians displaced along j (reading element
+    ii) or from the Hessians displaced along i (reading element jj). In exact arithmetic the
+    two agree; their difference measures the numerical noise of that constant (finite-difference
+    error of the input Hessians, SCF/grid noise, too small a DISP_SIZE). check_quartic cannot
+    see this once the two routes have been averaged, so the comparison is done here, before
+    averaging, and printed to the output file.
+
+    Parameters
+    ----------
+    route_a, route_b : np.ndarray
+        The two estimates of phi_iijj (cm-1), same shape; diagonal ignored
+    v_ind : List[int]
+        Vibrational indices
+    warn_above : float
+        Print a warning when the largest disagreement exceeds this value (cm-1)
+
+    Returns
+    -------
+    Dict
+        median, p90 and max of |route_a - route_b| over i < j, the worst pairs, and a flag
+    """
+    pairs = [(i, j) for i in v_ind for j in v_ind if i < j]
+    diff = np.array([abs(route_a[i, j] - route_b[i, j]) for (i, j) in pairs])
+    if diff.size == 0:
+        return {"median": 0.0, "p90": 0.0, "max": 0.0, "worst": [], "noisy": False}
+    order = np.argsort(-diff)[:5]
+    worst = [(pairs[k][0], pairs[k][1], float(route_a[pairs[k]]), float(route_b[pairs[k]])) for k in order]
+    stats = {"median": float(np.median(diff)), "p90": float(np.percentile(diff, 90)), "max": float(diff.max()),
+             "worst": worst, "noisy": bool(diff.max() > warn_above)}
+    print("Semi-diagonal quartic constants: disagreement between the two finite-difference routes (cm-1)")
+    print(f"  median {stats['median']:.2f}   90th percentile {stats['p90']:.2f}   max {stats['max']:.2f}")
+    if stats["noisy"]:
+        print(f"  WARNING: the largest disagreement exceeds {warn_above} cm-1. The quartic constants are dominated by numerical noise.")
+        print("  Typical causes: the input Hessians are themselves finite differences (e.g. psi4 DFT Hessians, which are")
+        print("  finite differences of gradients), a DISP_SIZE that is too small for that input, or loose SCF/grid settings.")
+        print("  Try a larger DISP_SIZE (0.1-0.25), FD_ACC 4, analytic Hessians, or tighter convergence. Worst pairs (i, j, route a, route b):")
+        for (i, j, a, b) in worst:
+            print(f"    ({i}, {j}): {a:+.1f}  {b:+.1f}")
+    return stats
+
 
 def _displace_cart(geom: np.ndarray, modes: np.ndarray, i_m: Iterator[Tuple], disp_size: float) -> Tuple[np.ndarray, str]:
     """
@@ -555,6 +606,8 @@ def assemble_quartic_from_hessians(findifrec: Dict) -> Tuple[np.ndarray, np.ndar
 
     phi_ijk = np.zeros((n_modes, n_modes, n_modes))
     phi_iijj = np.zeros((n_modes, n_modes))
+    route_a = np.zeros((n_modes, n_modes))
+    route_b = np.zeros((n_modes, n_modes))
 
     def transform_hessian(hess):
         hessQ = np.matmul(q.transpose(), np.matmul(hess, q))
@@ -585,12 +638,15 @@ def assemble_quartic_from_hessians(findifrec: Dict) -> Tuple[np.ndarray, np.ndar
             phi_iijj[i, i] /= disp_size ** 2
 
         else:
-            phi_iijj[i, j] = hess_p[j][i, i] + hess_n[j][i, i] + hess_p[i][j, j]
-            phi_iijj[i, j] += hess_n[i][j, j] - 2 * hess0[i, i] - 2 * hess0[j, j]
-            phi_iijj[i, j] /= 2 * disp_size ** 2
-
+            # two independent routes to the same constant: displace j and read ii, displace i and read jj
+            route_a[i, j] = (hess_p[j][i, i] + hess_n[j][i, i] - 2 * hess0[i, i]) / disp_size ** 2
+            route_b[i, j] = (hess_p[i][j, j] + hess_n[i][j, j] - 2 * hess0[j, j]) / disp_size ** 2
+            phi_iijj[i, j] = 0.5 * (route_a[i, j] + route_b[i, j])
 
     phi_iijj = phi_iijj / wave_to_hartree
+    route_a = route_a / wave_to_hartree
+    route_b = route_b / wave_to_hartree
+    findifrec["quartic_route_report"] = report_quartic_routes(route_a, route_b, v_ind)
     phi_iijj = check_quartic(phi_iijj, v_ind)
     phi_ijk = phi_ijk / wave_to_hartree
     phi_ijk = check_cubic(phi_ijk, v_ind)

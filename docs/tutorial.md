@@ -150,7 +150,7 @@ results = pyvpt2.process_vpt2(ret, **options)
 
 
 ### Options list:
-* `DISP_SIZE` (Default: 0.05) Displacement size used in finite-difference calculations.
+* `DISP_SIZE` (Default: 0.05) Displacement size used in finite-difference calculations, in reduced (dimensionless) normal coordinates. The default suits analytic Hessians with tight convergence. If the underlying program produces the Hessian itself by finite differences (psi4 does so for DFT functionals without analytic Hessians, e.g. B3LYP), a second finite difference with a step this small amplifies that noise into the semi-diagonal quartic constants — on benzene/B3LYP/6-31G* with psi4 Hessians the two independent routes to the same constant disagreed by up to 1,000 cm⁻¹ at 0.05. In that case use a larger step (0.1–0.25), `FD_ACC` 4, or analytic Hessians, and check the route-consistency report that pyVPT2 prints for the `HESSIAN` route ("Semi-diagonal quartic constants: disagreement between the two finite-difference routes").
 * `FD` (Default: "HESSIAN") Level of finite-difference calculation. Choose highest analytical derivative available for chosen method. Options: "ENERGY", "GRADIENT", or "HESSIAN"   
 * `FERMI` (Default: True) Deperturb Fermi resonances?
 * `GVPT2` (Default: False) Diagonalize Fermi resonances? Requires `FERMI` to be enabled.
