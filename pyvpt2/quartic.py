@@ -575,9 +575,10 @@ def assemble_quartic_from_hessians(findifrec: Dict) -> Tuple[np.ndarray, np.ndar
             phi_ijk[i, i, i] = (hess_p[i][i, i] - hess_n[i][i, i]) / (2 * disp_size)
 
         else:
-            phi_ijk[i, j, k] = hess_p[i][j, k] - hess_n[i][j, k] + hess_p[j][k, i]
-            phi_ijk[i, j, k] += - hess_n[j][k, i] + hess_p[k][i, j] - hess_n[k][i, j]
-            phi_ijk[i, j, k] /= 6 * disp_size
+            # One finite-difference route per element: displace along i, read the (j, k) element. The other permutations of (i, j, k)
+            # hold the routes through j and k, so check_cubic compares independent routes before it averages them (the average is
+            # the same as averaging the three routes here).
+            phi_ijk[i, j, k] = (hess_p[i][j, k] - hess_n[i][j, k]) / (2 * disp_size)
 
     for [i,j] in itertools.product(v_ind, repeat=2):
         if i == j:
@@ -585,9 +586,10 @@ def assemble_quartic_from_hessians(findifrec: Dict) -> Tuple[np.ndarray, np.ndar
             phi_iijj[i, i] /= disp_size ** 2
 
         else:
-            phi_iijj[i, j] = hess_p[j][i, i] + hess_n[j][i, i] + hess_p[i][j, j]
-            phi_iijj[i, j] += hess_n[i][j, j] - 2 * hess0[i, i] - 2 * hess0[j, j]
-            phi_iijj[i, j] /= 2 * disp_size ** 2
+            # One route per element: displace along j, read the (i, i) element; phi_iijj[j, i] holds the route through i. check_quartic
+            # compares the two before it symmetrizes, so it can see finite-difference noise in the input Hessians.
+            phi_iijj[i, j] = hess_p[j][i, i] + hess_n[j][i, i] - 2 * hess0[i, i]
+            phi_iijj[i, j] /= disp_size ** 2
 
 
     phi_iijj = phi_iijj / wave_to_hartree
