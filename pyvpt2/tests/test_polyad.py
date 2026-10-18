@@ -43,3 +43,34 @@ def test_polyad_3():
     state_list = test.solve()
     for state in state_list.keys():
         assert compare_values(ref[state], state_list[state], 0.1)
+
+
+def test_polyad_two_eigenvectors_peaking_on_one_state():
+    # three strongly mixed states: two eigenvectors have their largest component on the same basis state, which the
+    # per-eigenvector argmax mapped to one state twice and left another without a frequency (KeyError)
+    import numpy as np
+    i1 = Interaction(left=State(state=(0,), nu=1000.0), right=State(state=(1, 1), nu=1002.0), phi=400.0, ftype=1)
+    i2 = Interaction(left=State(state=(0,), nu=1000.0), right=State(state=(2, 3), nu=1001.0), phi=400.0, ftype=2)
+    test = Polyad(i1)
+    test.add(i2)
+    freqs = test.solve()
+    assert set(freqs) == {(0,), (1, 1), (2, 3)}
+    assert sorted(freqs.values()) == pytest.approx(sorted(np.linalg.eigvalsh(test.H)))
+
+
+def test_fermi_solver_merges_polyads_an_interaction_bridges():
+    import numpy as np
+
+    from pyvpt2.fermi_solver import fermi_solver
+    a = Interaction(left=State(state=(0,), nu=1000.0), right=State(state=(4, 4), nu=1010.0), phi=50.0, ftype=1)
+    b = Interaction(left=State(state=(1,), nu=1500.0), right=State(state=(5, 6), nu=1490.0), phi=60.0, ftype=2)
+    bridge = Interaction(left=State(state=(1,), nu=1500.0), right=State(state=(4, 4), nu=1010.0), phi=40.0, ftype=1)
+    freqs = fermi_solver([a, b, bridge])
+    whole = Polyad(a)
+    whole.add(b)
+    whole.add(bridge)
+    ref = whole.solve()
+    assert set(freqs) == {(0,), (1,), (4, 4), (5, 6)}
+    assert sorted(freqs.values()) == pytest.approx(sorted(np.linalg.eigvalsh(whole.H)))
+    for state, value in ref.items():
+        assert freqs[state] == pytest.approx(value)

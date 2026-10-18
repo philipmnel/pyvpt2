@@ -57,17 +57,17 @@ def fermi_solver(interaction_list: List) -> Dict:
     """
     polyad_list = [] # list of constructed polyads
     for interaction in interaction_list:
-        flag = False
-        for polyad in polyad_list:
-            if interaction.left.state in polyad.state_list:
-                polyad.add(interaction)
-                flag = True
-            elif interaction.right.state in polyad.state_list:
-                polyad.add(interaction)
-                flag = True
-
-        if flag == False:
+        # every polyad that already holds one of the two states; an interaction that bridges several merges them into one
+        hits = [polyad for polyad in polyad_list
+                if interaction.left.state in polyad.state_list or interaction.right.state in polyad.state_list]
+        if not hits:
             polyad_list.append(Polyad(interaction))
+            continue
+        target = hits[0]
+        for other in hits[1:]:
+            target.merge(other)
+            polyad_list.remove(other)
+        target.add(interaction)
 
     state_list = {}
     for polyad in polyad_list:
@@ -123,6 +123,18 @@ class Polyad:
         self.nu_list.update({right.state: right.nu})
         self.phi_list.update({(left.state, right.state): (interaction.phi, interaction.ftype)})
 
+    def merge(self, other: "Polyad"):
+        """
+        Absorb the states and interactions of another polyad
+
+        Parameters
+        ----------
+        other : Polyad
+        """
+        self.state_list.update(other.state_list)
+        self.nu_list.update(other.nu_list)
+        self.phi_list.update(other.phi_list)
+
     def build_hamiltonian(self):
         """
         Build effective hamiltonian from state list
@@ -154,8 +166,15 @@ class Polyad:
         """
         self.build_hamiltonian()
         evals, evecs = np.linalg.eigh(self.H)
-        inds = [np.argmax(vec) for vec in np.square(evecs.T)] # list of state indices of each eval
-        eval_dict = dict(zip(inds,evals))
+        # one eigenvalue per state: repeatedly take the largest remaining squared coefficient (state row, eigenvector column) and
+        # retire both; taking each eigenvector's own largest component instead can give two eigenvectors the same state
+        weight = np.square(evecs)
+        eval_of_state = {}
+        for _ in range(len(evals)):
+            ind, vec = np.unravel_index(np.argmax(weight), weight.shape)
+            eval_of_state[ind] = evals[vec]
+            weight[ind, :] = -1.0
+            weight[:, vec] = -1.0
 
-        freqs = { state: eval_dict[ind] for (state,ind) in self.state_list_enum.items() }
+        freqs = { state: eval_of_state[ind] for (state,ind) in self.state_list_enum.items() }
         return freqs
